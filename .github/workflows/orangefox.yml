@@ -1,0 +1,91 @@
+name: Build OrangeFox R12 – spinel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '**.mk'
+      - '**.bp'
+      - '**.rc'
+      - 'prebuilt/**'
+
+env:
+  DEVICE_NAME: spinel
+  DEVICE_PATH: device/xiaomi/spinel
+
+jobs:
+  build-orangefox:
+    name: Build OrangeFox R12
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: device_tree }
+
+      - uses: jlumbroso/free-disk-space@main
+        with: { android: true, large-packages: true, swap-storage: false }
+
+      - name: Swap + repo tool + deps
+        run: |
+          sudo fallocate -l 12G /swapfile && sudo chmod 600 /swapfile
+          sudo mkswap /swapfile && sudo swapon /swapfile
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
+            git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev \
+            lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev \
+            libssl-dev libtinfo5 libxml2 libxml2-utils lz4 openjdk-11-jdk \
+            pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3
+          mkdir -p ~/bin
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
+          chmod a+x ~/bin/repo && echo "$HOME/bin" >> $GITHUB_PATH
+          git config --global user.email "ci@spinel" && git config --global user.name "CI"
+
+      - name: Sync OrangeFox R12 via orangefox_sync.sh
+        run: |
+          export PATH="$HOME/bin:$PATH"
+          mkdir -p $GITHUB_WORKSPACE/OrangeFox && cd $GITHUB_WORKSPACE/OrangeFox
+          git clone https://gitlab.com/OrangeFox/sync.git --depth=1
+          cd sync && chmod +x orangefox_sync.sh
+          ./orangefox_sync.sh --branch 12.1 \
+            --path $GITHUB_WORKSPACE/OrangeFox/fox_12.1 --ssh 0 2>&1 | tail -50
+
+      - name: Copy device tree
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/OrangeFox/fox_12.1/$DEVICE_PATH
+          cp -r $GITHUB_WORKSPACE/device_tree/. \
+                $GITHUB_WORKSPACE/OrangeFox/fox_12.1/$DEVICE_PATH/
+
+      - name: ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ofox-${{ env.DEVICE_NAME }}-${{ github.sha }}
+          restore-keys: ofox-${{ env.DEVICE_NAME }}-
+
+      - name: Build
+        run: |
+          export PATH="$HOME/bin:$PATH"
+          cd $GITHUB_WORKSPACE/OrangeFox/fox_12.1 && source build/envsetup.sh
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export FOX_BUILD_DEVICE=spinel FOX_AB_DEVICE=1
+          export FOX_VIRTUAL_AB_DEVICE=1 FOX_VENDOR_BOOT_RECOVERY=1
+          export OF_ENABLE_LPTOOLS=1 USE_CCACHE=1
+          ccache -M 8G
+          lunch fox_spinel-eng
+          mka vendorbootimage -j$(nproc) 2>&1 | tail -80
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: OrangeFox-R12-spinel-${{ github.run_number }}
+          path: |
+            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/spinel/OrangeFox*.img
+            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/spinel/OrangeFox*.zip
+            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/spinel/vendor_boot.img
+          retention-days: 30
