@@ -5,7 +5,7 @@
 | Feature | Specification |
 |---------|--------------|
 | Codename | spinel |
-| Platform | MediaTek MT6789 (Helio G99 Ultra) |
+| Platform | MediaTek MT6789 (Helio G100 Ultra) |
 | Brand | Redmi |
 | Model | Redmi Note 15 4G |
 | Architecture | arm64-v8a |
