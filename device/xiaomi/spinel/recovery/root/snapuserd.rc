@@ -1,7 +1,9 @@
 service snapuserd /system/bin/snapuserd
-    socket snapuserd stream 0660 system system
-    oneshot
-    disabled
+    class core
     user root
-    group root system
+    group root
+    disabled
     seclabel u:r:snapuserd:s0
+
+on property:ro.virtual_ab.enabled=true
+    start snapuserd
