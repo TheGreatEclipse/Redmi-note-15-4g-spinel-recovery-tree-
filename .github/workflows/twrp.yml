@@ -1,0 +1,81 @@
+name: Build TWRP (Latest) – spinel
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '**.mk'
+      - '**.bp'
+      - '**.rc'
+      - 'prebuilt/**'
+
+env:
+  DEVICE_NAME: spinel
+  DEVICE_PATH: device/xiaomi/spinel
+
+jobs:
+  build-twrp:
+    name: Build TWRP Latest
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: device_tree }
+
+      - uses: jlumbroso/free-disk-space@main
+        with: { android: true, large-packages: true, swap-storage: false }
+
+      - name: Swap + repo tool + deps
+        run: |
+          sudo fallocate -l 12G /swapfile && sudo chmod 600 /swapfile
+          sudo mkswap /swapfile && sudo swapon /swapfile
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
+            git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev \
+            lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev \
+            libssl-dev libtinfo5 libxml2 libxml2-utils lz4 openjdk-11-jdk \
+            pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
+            python3 python-is-python3
+          mkdir -p ~/bin
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
+          chmod a+x ~/bin/repo && echo "$HOME/bin" >> $GITHUB_PATH
+          git config --global user.email "ci@spinel" && git config --global user.name "CI"
+
+      - name: Repo init + sync TWRP 14.1
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/twrp && cd $GITHUB_WORKSPACE/twrp
+          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git \
+            -b twrp-14.1 --depth=1 --no-repo-verify
+          repo sync -j$(nproc) -c --force-sync --no-clone-bundle --no-tags \
+            --optimized-fetch --prune 2>&1 | tail -20
+
+      - name: Copy device tree
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/twrp/$DEVICE_PATH
+          cp -r $GITHUB_WORKSPACE/device_tree/. $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
+
+      - name: ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: twrp-${{ env.DEVICE_NAME }}-${{ github.sha }}
+          restore-keys: twrp-${{ env.DEVICE_NAME }}-
+
+      - name: Build
+        run: |
+          cd $GITHUB_WORKSPACE/twrp && source build/envsetup.sh
+          export ALLOW_MISSING_DEPENDENCIES=true && ccache -M 8G
+          lunch twrp_spinel-eng
+          mka vendorbootimage -j$(nproc) 2>&1 | tail -80
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: TWRP-spinel-${{ github.run_number }}
+          path: ${{ github.workspace }}/twrp/out/target/product/spinel/vendor_boot.img
+          retention-days: 30
