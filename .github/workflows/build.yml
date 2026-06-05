@@ -1,0 +1,245 @@
+name: Build TWRP & OrangeFox R12 Recovery
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DEVICE_NAME: spinel
+  DEVICE_PATH: device/xiaomi/spinel
+  DEVICE_BRAND: xiaomi
+  MANIFEST_URL: "https://github.com/minimal-manifest-twrp/manifest_twrp_aosp.git"
+  MANIFEST_BRANCH: twrp-14.1
+  ORANGEFOX_MANIFEST: "https://github.com/OrangeFox-Development/sync.git"
+  ORANGEFOX_BRANCH: eclipse
+
+jobs:
+  build-twrp:
+    name: Build TWRP (Latest)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          path: device_tree
+
+      - name: Set up build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib gcc-multilib git \
+            git-lfs gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev \
+            lib32z1-dev liblz4-tool libncurses5 libsdl1.2-dev libssl-dev libtinfo5 \
+            libxml2 libxml2-utils lz4 openjdk-11-jdk pkg-config pngcrush rsync \
+            schedtool squashfs-tools xsltproc zip zlib1g-dev
+          
+          git config --global user.email "builder@twrp.local"
+          git config --global user.name "TWRP Builder"
+
+      - name: Initialize TWRP repo
+        run: |
+          mkdir -p /home/runner/work/twrp
+          cd /home/runner/work/twrp
+          repo init -u $MANIFEST_URL -b $MANIFEST_BRANCH --depth=1
+          echo "repo initialized successfully"
+
+      - name: Sync TWRP sources
+        run: |
+          cd /home/runner/work/twrp
+          repo sync -j$(nproc --all) --force-sync --no-clone-bundle --no-tags 2>&1 | tail -20
+
+      - name: Copy device tree to TWRP
+        run: |
+          mkdir -p /home/runner/work/twrp/$DEVICE_PATH
+          cp -r device_tree/* /home/runner/work/twrp/$DEVICE_PATH/
+
+      - name: Setup ccache
+        run: |
+          ccache -M 5G
+          ccache -z
+
+      - name: Build TWRP Recovery Image
+        run: |
+          cd /home/runner/work/twrp
+          source build/envsetup.sh
+          lunch twrp_${DEVICE_NAME}-eng
+          mka adbd bootimage vendorbootimage 2>&1 | tail -50
+        continue-on-error: false
+
+      - name: Verify build output
+        run: |
+          BOOT_IMG="/home/runner/work/twrp/out/target/product/${DEVICE_NAME}/boot.img"
+          VENDOR_BOOT="/home/runner/work/twrp/out/target/product/${DEVICE_NAME}/vendor_boot.img"
+          
+          if [ -f "$BOOT_IMG" ]; then
+            ls -lh "$BOOT_IMG"
+            file "$BOOT_IMG"
+          else
+            echo "ERROR: boot.img not found"
+            exit 1
+          fi
+          
+          if [ -f "$VENDOR_BOOT" ]; then
+            ls -lh "$VENDOR_BOOT"
+            file "$VENDOR_BOOT"
+          else
+            echo "ERROR: vendor_boot.img not found"
+            exit 1
+          fi
+
+      - name: Upload TWRP artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: TWRP-Recovery-Latest
+          path: |
+            /home/runner/work/twrp/out/target/product/${{ env.DEVICE_NAME }}/boot.img
+            /home/runner/work/twrp/out/target/product/${{ env.DEVICE_NAME }}/vendor_boot.img
+            /home/runner/work/twrp/out/target/product/${{ env.DEVICE_NAME }}/recovery.img
+          retention-days: 30
+
+      - name: Show build results
+        if: success()
+        run: |
+          echo "✅ TWRP Build Successful!"
+          echo "Boot Image: boot.img"
+          echo "Vendor Boot Image: vendor_boot.img"
+          ls -lh /home/runner/work/twrp/out/target/product/${DEVICE_NAME}/*.img
+
+  build-orangefox:
+    name: Build OrangeFox R12
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          path: device_tree
+
+      - name: Set up build environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc bison build-essential ccache curl flex g++-multilib gcc-multilib git \
+            git-lfs gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev \
+            lib32z1-dev liblz4-tool libncurses5 libsdl1.2-dev libssl-dev libtinfo5 \
+            libxml2 libxml2-utils lz4 openjdk-11-jdk pkg-config pngcrush rsync \
+            schedtool squashfs-tools xsltproc zip zlib1g-dev
+          
+          git config --global user.email "orangefox@builder.local"
+          git config --global user.name "OrangeFox Builder"
+
+      - name: Initialize OrangeFox repo
+        run: |
+          mkdir -p /home/runner/work/orangefox
+          cd /home/runner/work/orangefox
+          repo init -u $ORANGEFOX_MANIFEST -b $ORANGEFOX_BRANCH --depth=1
+          echo "OrangeFox repo initialized successfully"
+
+      - name: Sync OrangeFox sources
+        run: |
+          cd /home/runner/work/orangefox
+          repo sync -j$(nproc --all) --force-sync --no-clone-bundle --no-tags 2>&1 | tail -20
+
+      - name: Copy device tree to OrangeFox
+        run: |
+          mkdir -p /home/runner/work/orangefox/$DEVICE_PATH
+          cp -r device_tree/* /home/runner/work/orangefox/$DEVICE_PATH/
+
+      - name: Setup ccache for OrangeFox
+        run: |
+          ccache -M 5G
+          ccache -z
+
+      - name: Set OrangeFox environment variables
+        run: |
+          echo "export FOX_BUILD_DEVICE=$DEVICE_NAME" >> $GITHUB_ENV
+          echo "export FOX_AB_DEVICE=1" >> $GITHUB_ENV
+          echo "export FOX_VIRTUAL_AB_DEVICE=1" >> $GITHUB_ENV
+          echo "export FOX_VENDOR_BOOT_RECOVERY=1" >> $GITHUB_ENV
+          echo "export OF_DISABLE_MIUI_SPECIFIC_FEATURES=1" >> $GITHUB_ENV
+          echo "export OF_ENABLE_LPTOOLS=1" >> $GITHUB_ENV
+          echo "export OF_DYNAMIC_PARTITIONS_RESOLVED_DURING_BUILD=1" >> $GITHUB_ENV
+
+      - name: Build OrangeFox Recovery Image
+        run: |
+          cd /home/runner/work/orangefox
+          source build/envsetup.sh
+          export FOX_BUILD_DEVICE=${{ env.DEVICE_NAME }}
+          export FOX_AB_DEVICE=1
+          export FOX_VIRTUAL_AB_DEVICE=1
+          export FOX_VENDOR_BOOT_RECOVERY=1
+          lunch twrp_${DEVICE_NAME}-eng
+          mka adbd bootimage vendorbootimage 2>&1 | tail -50
+        continue-on-error: false
+
+      - name: Verify OrangeFox build output
+        run: |
+          BOOT_IMG="/home/runner/work/orangefox/out/target/product/${DEVICE_NAME}/boot.img"
+          VENDOR_BOOT="/home/runner/work/orangefox/out/target/product/${DEVICE_NAME}/vendor_boot.img"
+          
+          if [ -f "$BOOT_IMG" ]; then
+            ls -lh "$BOOT_IMG"
+            file "$BOOT_IMG"
+          else
+            echo "ERROR: boot.img not found"
+            exit 1
+          fi
+          
+          if [ -f "$VENDOR_BOOT" ]; then
+            ls -lh "$VENDOR_BOOT"
+            file "$VENDOR_BOOT"
+          else
+            echo "ERROR: vendor_boot.img not found"
+            exit 1
+          fi
+
+      - name: Upload OrangeFox artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: OrangeFox-R12-Recovery
+          path: |
+            /home/runner/work/orangefox/out/target/product/${{ env.DEVICE_NAME }}/boot.img
+            /home/runner/work/orangefox/out/target/product/${{ env.DEVICE_NAME }}/vendor_boot.img
+            /home/runner/work/orangefox/out/target/product/${{ env.DEVICE_NAME }}/recovery.img
+          retention-days: 30
+
+      - name: Show build results
+        if: success()
+        run: |
+          echo "✅ OrangeFox R12 Build Successful!"
+          echo "Boot Image: boot.img"
+          echo "Vendor Boot Image: vendor_boot.img"
+          ls -lh /home/runner/work/orangefox/out/target/product/${DEVICE_NAME}/*.img
+
+  build-status:
+    name: Build Status Summary
+    runs-on: ubuntu-latest
+    needs: [build-twrp, build-orangefox]
+    if: always()
+
+    steps:
+      - name: Check build results
+        run: |
+          if [ "${{ needs.build-twrp.result }}" == "success" ] && [ "${{ needs.build-orangefox.result }}" == "success" ]; then
+            echo "✅ All builds completed successfully!"
+            exit 0
+          else
+            echo "❌ Some builds failed"
+            echo "TWRP Build: ${{ needs.build-twrp.result }}"
+            echo "OrangeFox Build: ${{ needs.build-orangefox.result }}"
+            exit 1
+          fi
