@@ -22,7 +22,7 @@ PRODUCT_MANUFACTURER := Xiaomi
 PRODUCT_RELEASE_NAME := spinel
 
 # ─── OrangeFox Version ───────────────────────────────────────────────
-FOX_VERSION            := R12-spinel
+FOX_VERSION            := R12.1
 OF_MAINTAINER          := mkpromvp
 FOX_BUILD_TYPE         := Unofficial
 
@@ -30,12 +30,9 @@ FOX_BUILD_TYPE         := Unofficial
 FOX_AB_DEVICE              := 1
 FOX_VIRTUAL_AB_DEVICE      := 1
 FOX_VENDOR_BOOT_RECOVERY   := 1
-
-# Vanilla build for A/B (disables MIUI-specific patches)
 FOX_VANILLA_BUILD          := 1
-
-# Ramdisk: use LZ4 (matches stock vendor_boot)
 OF_USE_LZ4_COMPRESSION     := 1
+OF_FORCE_PREBUILT_KERNEL   := 1
 
 # Screen geometry (6.72" FHD+ 20:9)
 OF_SCREEN_H                := 2400
@@ -56,7 +53,7 @@ OF_IGNORE_LOGICAL_MOUNT_ERRORS := 1
 # Dynamic partition / super size
 OF_DYNAMIC_FULL_SIZE       := 9126805504
 
-# vendor_boot: no flash current / no reflash after ROM
+# vendor_boot restrictions
 OF_NO_REFLASH_CURRENT_ORANGEFOX := 1
 
 # Magiskboot (use updated binary for kernel 6.12)
@@ -80,5 +77,5 @@ FOX_USE_SED_BINARY          := 1
 FOX_USE_BASH_SHELL          := 1
 FOX_ASH_IS_BASH             := 1
 
-# App Manager (disabled by default for stability)
+# App Manager
 FOX_ENABLE_APP_MANAGER      := 0
