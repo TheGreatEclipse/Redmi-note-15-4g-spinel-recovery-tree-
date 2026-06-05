@@ -1,6 +1,6 @@
 #
 # Copyright (C) 2026 The Android Open Source Project
-# Copyright (C) 2026 SebaUbuntu's TWRP device tree generator
+# Copyright (C) 2026 TWRP Device Tree – Redmi Note 15 4G (spinel)
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -18,12 +18,13 @@ $(call inherit-product, device/xiaomi/spinel/device.mk)
 PRODUCT_DEVICE := spinel
 PRODUCT_NAME := twrp_spinel
 PRODUCT_BRAND := Redmi
-PRODUCT_MODEL := spinel
-PRODUCT_MANUFACTURER := xiaomi
+PRODUCT_MODEL := Redmi Note 15 4G
+PRODUCT_MANUFACTURER := Xiaomi
 
 PRODUCT_GMS_CLIENTID_BASE := android-xiaomi
 
+# Updated to match OS3.0.301.0.WPGMIXM dump fingerprint
 PRODUCT_BUILD_PROP_OVERRIDES += \
-    PRIVATE_BUILD_DESC="spinel-user 12 SP1A.210812.016 OS2.0.212.0.VPGMIXM release-keys"
+    PRIVATE_BUILD_DESC="missi-user 16 BP2A.250605.031.A3 OS3.0.301.0.WPGMIXM release-keys"
 
-BUILD_FINGERPRINT := Redmi/spinel/spinel:12/SP1A.210812.016/OS2.0.212.0.VPGMIXM:user/release-keys
+BUILD_FINGERPRINT := Redmi/spinel/spinel:16/BP2A.250605.031.A3/OS3.0.301.0.WPGMIXM:user/release-keys
