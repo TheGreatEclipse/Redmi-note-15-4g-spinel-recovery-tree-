@@ -14,7 +14,7 @@ env:
 
 jobs:
 
-  # ══ Job 1 – TWRP Latest (twrp-14.1) ══════════════════════════════
+  # ══ Job 1 - TWRP Latest (twrp-14.1) ══════════════════════════════
   build-twrp:
     name: Build TWRP (Latest)
     runs-on: ubuntu-22.04
@@ -58,14 +58,11 @@ jobs:
             libsdl1.2-dev libssl-dev libtinfo5 libxml2 libxml2-utils \
             lz4 openjdk-11-jdk pkg-config pngcrush rsync schedtool \
             squashfs-tools xsltproc zip zlib1g-dev python3 python-is-python3
-
-          # ── Install Google repo tool (fixes "repo: command not found") ──
           mkdir -p ~/bin
           curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
                -o ~/bin/repo
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
-
           git config --global user.email "builder@twrp.local"
           git config --global user.name "TWRP Builder"
           git config --global color.ui false
@@ -93,6 +90,11 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/twrp/$DEVICE_PATH
           cp -r $GITHUB_WORKSPACE/device_tree/. \
                 $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
+          # Remove vendorsetup.sh to avoid lunch combo conflict in TWRP build
+          # TWRP uses COMMON_LUNCH_CHOICES in AndroidProducts.mk instead
+          rm -f $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/vendorsetup.sh
+          echo "Device tree copied. Contents:"
+          ls -la $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
 
       - name: Setup ccache
         uses: actions/cache@v4
@@ -104,22 +106,30 @@ jobs:
       - name: Configure ccache
         run: |
           ccache -M 8G && ccache -z
-          echo "USE_CCACHE=1"      >> $GITHUB_ENV
+          echo "USE_CCACHE=1" >> $GITHUB_ENV
           echo "CCACHE_EXEC=$(which ccache)" >> $GITHUB_ENV
 
       - name: Build TWRP vendor_boot image
         run: |
           cd $GITHUB_WORKSPACE/twrp
-          source build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
-          lunch twrp_${DEVICE_NAME}-eng
-          mka vendorbootimage -j$(nproc) 2>&1 | tail -80
+          export LC_ALL=C
+          export USE_CCACHE=1
+          export CCACHE_EXEC=$(which ccache)
+          source build/envsetup.sh
+          lunch twrp_spinel-eng
+          mka vendorbootimage -j$(nproc) 2>&1 | tail -100
 
       - name: Verify output
         run: |
           VBOOT=$GITHUB_WORKSPACE/twrp/out/target/product/${DEVICE_NAME}/vendor_boot.img
-          if [ -f "$VBOOT" ]; then echo "✅ vendor_boot.img OK: $(du -sh $VBOOT|cut -f1)";
-          else echo "❌ vendor_boot.img NOT found"; exit 1; fi
+          if [ -f "$VBOOT" ]; then
+            echo "vendor_boot.img OK: $(du -sh $VBOOT | cut -f1)"
+          else
+            echo "vendor_boot.img NOT found"
+            ls $GITHUB_WORKSPACE/twrp/out/target/product/${DEVICE_NAME}/ || true
+            exit 1
+          fi
 
       - name: Upload TWRP artifacts
         uses: actions/upload-artifact@v4
@@ -131,7 +141,7 @@ jobs:
             ${{ github.workspace }}/twrp/out/target/product/${{ env.DEVICE_NAME }}/boot.img
           retention-days: 30
 
-  # ══ Job 2 – OrangeFox R12 (fox_12.1) ═════════════════════════════
+  # ══ Job 2 - OrangeFox R12 (fox_12.1) ═════════════════════════════
   build-orangefox:
     name: Build OrangeFox R12
     runs-on: ubuntu-22.04
@@ -175,37 +185,37 @@ jobs:
             libsdl1.2-dev libssl-dev libtinfo5 libxml2 libxml2-utils \
             lz4 openjdk-11-jdk pkg-config pngcrush rsync schedtool \
             squashfs-tools xsltproc zip zlib1g-dev python3 python-is-python3
-
-          # ── Install Google repo tool ──
           mkdir -p ~/bin
           curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
                -o ~/bin/repo
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
-
           git config --global user.email "orangefox@builder.local"
           git config --global user.name "OrangeFox Builder"
           git config --global color.ui false
 
-      - name: Sync OrangeFox R12 (via orangefox_sync.sh)
+      - name: Sync OrangeFox R12 via repo manifest
         run: |
           export PATH="$HOME/bin:$PATH"
-          mkdir -p $GITHUB_WORKSPACE/OrangeFox
-          cd $GITHUB_WORKSPACE/OrangeFox
-          git clone https://gitlab.com/OrangeFox/sync.git --depth=1
-          cd sync
-          chmod +x orangefox_sync.sh
-          ./orangefox_sync.sh \
-            --branch 12.1 \
-            --path $GITHUB_WORKSPACE/OrangeFox/fox_12.1 \
-            --ssh 0 2>&1 | tail -50
-          echo "OrangeFox R12 sync OK"
+          mkdir -p $GITHUB_WORKSPACE/OrangeFox/fox_12.1
+          cd $GITHUB_WORKSPACE/OrangeFox/fox_12.1
+          repo init \
+            -u https://gitlab.com/OrangeFox/Manifest.git \
+            -b fox_12.1 \
+            --depth=1 \
+            --no-repo-verify
+          repo sync -j$(nproc) -c --force-sync \
+            --no-clone-bundle --no-tags \
+            --optimized-fetch --prune 2>&1 | tail -50
+          echo "OrangeFox R12 sync complete"
 
       - name: Copy device tree
         run: |
           FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
           mkdir -p $FOXDIR/$DEVICE_PATH
           cp -r $GITHUB_WORKSPACE/device_tree/. $FOXDIR/$DEVICE_PATH/
+          echo "Device tree copied. Contents:"
+          ls -la $FOXDIR/$DEVICE_PATH/
 
       - name: Setup ccache
         uses: actions/cache@v4
@@ -217,7 +227,7 @@ jobs:
       - name: Configure ccache
         run: |
           ccache -M 8G && ccache -z
-          echo "USE_CCACHE=1"      >> $GITHUB_ENV
+          echo "USE_CCACHE=1" >> $GITHUB_ENV
           echo "CCACHE_EXEC=$(which ccache)" >> $GITHUB_ENV
 
       - name: Build OrangeFox R12 vendor_boot image
@@ -225,46 +235,40 @@ jobs:
           export PATH="$HOME/bin:$PATH"
           FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
           cd $FOXDIR
-          source build/envsetup.sh
           export ALLOW_MISSING_DEPENDENCIES=true
+          export LC_ALL=C
           export FOX_BUILD_DEVICE=${DEVICE_NAME}
           export FOX_AB_DEVICE=1
           export FOX_VIRTUAL_AB_DEVICE=1
           export FOX_VENDOR_BOOT_RECOVERY=1
+          export FOX_VANILLA_BUILD=1
+          export OF_FORCE_PREBUILT_KERNEL=1
           export OF_ENABLE_LPTOOLS=1
-          export OF_DYNAMIC_PARTITIONS_RESOLVED_DURING_BUILD=1
           export USE_CCACHE=1
-          lunch fox_${DEVICE_NAME}-eng
-          mka vendorbootimage -j$(nproc) 2>&1 | tail -80
+          export CCACHE_EXEC=$(which ccache)
+          source build/envsetup.sh
+          lunch fox_spinel-eng
+          mka vendorbootimage -j$(nproc) 2>&1 | tail -100
 
       - name: Verify output
         run: |
-          OUT=$GITHUB_WORKSPACE/OrangeFox/fox_12.1/out/target/product/${DEVICE_NAME}
-          if ls $OUT/OrangeFox*.img 2>/dev/null || [ -f "$OUT/vendor_boot.img" ]; then
-            echo "✅ OrangeFox build OK"; ls -lh $OUT/*.img 2>/dev/null;
-          else echo "❌ No output image found"; exit 1; fi
+          FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
+          VBOOT=$FOXDIR/out/target/product/${DEVICE_NAME}/vendor_boot.img
+          if [ -f "$VBOOT" ]; then
+            echo "vendor_boot.img OK: $(du -sh $VBOOT | cut -f1)"
+          else
+            echo "vendor_boot.img NOT found"
+            ls $FOXDIR/out/target/product/${DEVICE_NAME}/ || true
+            exit 1
+          fi
 
       - name: Upload OrangeFox artifacts
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: OrangeFox-R12-${{ env.DEVICE_NAME }}-${{ github.run_number }}
+          name: OrangeFox-R12-spinel-${{ github.run_number }}
           path: |
             ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img
             ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.zip
             ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/${{ env.DEVICE_NAME }}/vendor_boot.img
           retention-days: 30
-
-  # ══ Job 3 – Status Summary ════════════════════════════════════════
-  build-status:
-    name: Build Status Summary
-    runs-on: ubuntu-latest
-    needs: [build-twrp, build-orangefox]
-    if: always()
-    steps:
-      - name: Report
-        run: |
-          echo "TWRP:       ${{ needs.build-twrp.result }}"
-          echo "OrangeFox:  ${{ needs.build-orangefox.result }}"
-          if [ "${{ needs.build-twrp.result }}" != "success" ] || \
-             [ "${{ needs.build-orangefox.result }}" != "success" ]; then exit 1; fi
