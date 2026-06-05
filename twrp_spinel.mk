@@ -6,15 +6,20 @@
 #
 
 # Inherit from those products. Most specific first.
-$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
-$(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit_only.mk)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/base.mk)
 
-# Inherit some common Omni stuff.
-$(call inherit-product, vendor/twrp/config/common.mk)
+# Enable Virtual A/B OTA
+$(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota/launch_with_vendor_ramdisk.mk)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota/compression.mk)
 
-# Inherit from spinel device
+# GSI keys for verified boot
+$(call inherit-product, $(SRC_TARGET_DIR)/product/gsi_keys.mk)
+
+# Inherit from device tree
 $(call inherit-product, device/xiaomi/spinel/device.mk)
 
+# Device identifiers
 PRODUCT_DEVICE := spinel
 PRODUCT_NAME := twrp_spinel
 PRODUCT_BRAND := Redmi
@@ -22,9 +27,3 @@ PRODUCT_MODEL := Redmi Note 15 4G
 PRODUCT_MANUFACTURER := Xiaomi
 
 PRODUCT_GMS_CLIENTID_BASE := android-xiaomi
-
-# Updated to match OS3.0.301.0.WPGMIXM dump fingerprint
-PRODUCT_BUILD_PROP_OVERRIDES += \
-    PRIVATE_BUILD_DESC="missi-user 16 BP2A.250605.031.A3 OS3.0.301.0.WPGMIXM release-keys"
-
-BUILD_FINGERPRINT := Redmi/spinel/spinel:16/BP2A.250605.031.A3/OS3.0.301.0.WPGMIXM:user/release-keys
