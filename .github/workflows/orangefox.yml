@@ -60,19 +60,16 @@ jobs:
           git config --global user.email "ci@spinel"
           git config --global user.name "CI"
 
-      - name: Sync OrangeFox R12 via repo manifest
+      - name: Sync OrangeFox R12 via orangefox_sync.sh
         run: |
           export PATH="$HOME/bin:$PATH"
-          mkdir -p $GITHUB_WORKSPACE/OrangeFox/fox_12.1
-          cd $GITHUB_WORKSPACE/OrangeFox/fox_12.1
-          repo init \
-            -u https://gitlab.com/OrangeFox/Manifest.git \
-            -b fox_12.1 \
-            --depth=1 \
-            --no-repo-verify
-          repo sync -j$(nproc) -c --force-sync \
-            --no-clone-bundle --no-tags \
-            --optimized-fetch --prune 2>&1 | tail -50
+          # FIX: Use official orangefox_sync.sh script
+          # Avoids GitLab authentication errors with direct repo init
+          mkdir -p $GITHUB_WORKSPACE/OrangeFox_sync
+          cd $GITHUB_WORKSPACE/OrangeFox_sync
+          git clone https://gitlab.com/OrangeFox/sync.git --depth=1
+          cd sync
+          ./orangefox_sync.sh --branch 12.1 --path $GITHUB_WORKSPACE/OrangeFox/fox_12.1
           echo "OrangeFox R12 sync complete"
 
       - name: Copy device tree
@@ -100,15 +97,10 @@ jobs:
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
           export FOX_BUILD_DEVICE=${DEVICE_NAME}
-          export FOX_AB_DEVICE=1
-          export FOX_VIRTUAL_AB_DEVICE=1
-          export FOX_VENDOR_BOOT_RECOVERY=1
-          export FOX_VANILLA_BUILD=1
-          export OF_FORCE_PREBUILT_KERNEL=1
-          export OF_ENABLE_LPTOOLS=1
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
           source build/envsetup.sh
+          # vendorsetup.sh auto-sourced = sets all OrangeFox env vars
           lunch fox_spinel-eng
           mka vendorbootimage -j$(nproc) 2>&1 | tail -100
 
