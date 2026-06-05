@@ -4,26 +4,22 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
+# TWRP Product Makefile – spinel (Redmi Note 15 4G)
+#
 
-# Inherit from those products. Most specific first.
-$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit_only.mk)
-$(call inherit-product, $(SRC_TARGET_DIR)/product/base.mk)
+# Inherit AOSP base
+$(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
 
-# Enable Virtual A/B OTA
-$(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota/launch_with_vendor_ramdisk.mk)
-$(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota/compression.mk)
-
-# GSI keys for verified boot
-$(call inherit-product, $(SRC_TARGET_DIR)/product/gsi_keys.mk)
-
-# Inherit from device tree
+# Inherit device configuration
 $(call inherit-product, device/xiaomi/spinel/device.mk)
 
-# Device identifiers
-PRODUCT_DEVICE := spinel
-PRODUCT_NAME := twrp_spinel
-PRODUCT_BRAND := Redmi
-PRODUCT_MODEL := Redmi Note 15 4G
+# ─── Device Identifiers ──────────────────────────────────────────────
+PRODUCT_DEVICE       := spinel
+PRODUCT_NAME         := twrp_spinel
+PRODUCT_BRAND        := Redmi
+PRODUCT_MODEL        := Redmi Note 15 4G
 PRODUCT_MANUFACTURER := Xiaomi
+PRODUCT_RELEASE_NAME := spinel
 
-PRODUCT_GMS_CLIENTID_BASE := android-xiaomi
+# ─── TWRP Variant ────────────────────────────────────────────────────
+TW_DEVICE_VERSION := spinel-mkpromvp-v1
