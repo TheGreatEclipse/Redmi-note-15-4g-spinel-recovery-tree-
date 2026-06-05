@@ -1,4 +1,4 @@
-name: Build OrangeFox Recovery - Redmi fire (MT6768)
+name: Build OrangeFox Recovery - Redmi spinel
 
 on:
   push:
