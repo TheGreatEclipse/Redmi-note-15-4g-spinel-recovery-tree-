@@ -21,7 +21,6 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -47,11 +46,10 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             bc bison build-essential ccache curl flex g++-multilib gcc-multilib \
-            git gnupg gperf imagemagick lib32ncurses5-dev lib32readline-dev \
-            lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libsdl1.2-dev \
-            libssl-dev libxml2 libxml2-utils lz4 openjdk-11-jdk \
-            pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev \
-            python3 python-is-python3 libtinfo5
+            git gnupg gperf lib32ncurses5-dev lib32readline-dev \
+            lib32z1-dev liblz4-tool libncurses5 libncurses5-dev libssl-dev \
+            libxml2 libxml2-utils lz4 openjdk-11-jdk pngcrush rsync schedtool \
+            squashfs-tools zip zlib1g-dev python3 python-is-python3 libtinfo5
           mkdir -p ~/bin
           curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
           chmod a+x ~/bin/repo
@@ -72,46 +70,27 @@ jobs:
       - name: Copy device tree
         run: |
           mkdir -p $GITHUB_WORKSPACE/twrp/$DEVICE_PATH
-          cp -r $GITHUB_WORKSPACE/device_tree/. \
-                $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
-          # FIX: Remove vendorsetup.sh - causes OrangeFox env conflict in TWRP build
-          # Without this, "lunch twrp_spinel-eng" fails because OrangeFox env is loaded
+          cp -r $GITHUB_WORKSPACE/device_tree/. $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
+          # CRITICAL FIX: Remove vendorsetup.sh
           rm -f $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/vendorsetup.sh
-          echo "Device tree copied (vendorsetup.sh removed for TWRP build):"
           ls -la $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
-
-      - name: Setup ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: twrp-${{ env.DEVICE_NAME }}-${{ github.sha }}
-          restore-keys: twrp-${{ env.DEVICE_NAME }}-
-
-      - name: Configure ccache
-        run: ccache -M 8G
 
       - name: Build TWRP vendor_boot image
         run: |
           export PATH="$HOME/bin:$PATH"
           cd $GITHUB_WORKSPACE/twrp
           export ALLOW_MISSING_DEPENDENCIES=true
-          export LC_ALL="C"
+          export LC_ALL=C
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
           source build/envsetup.sh
-          # twrp_spinel-eng registered via COMMON_LUNCH_CHOICES in AndroidProducts.mk
           lunch twrp_spinel-eng
           mka vendorbootimage 2>&1 | tail -100
-
-      - name: Verify output
-        run: |
-          ls -lh $GITHUB_WORKSPACE/twrp/out/target/product/spinel/ || true
 
       - name: Upload TWRP artifacts
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: TWRP-14.1-spinel-${{ github.run_number }}
-          path: |
-            ${{ github.workspace }}/twrp/out/target/product/spinel/vendor_boot.img
+          path: ${{ github.workspace }}/twrp/out/target/product/spinel/vendor_boot.img
           retention-days: 30
