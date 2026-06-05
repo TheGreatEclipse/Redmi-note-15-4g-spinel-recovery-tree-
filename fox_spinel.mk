@@ -22,7 +22,7 @@ PRODUCT_MODEL        := Redmi Note 15 4G
 PRODUCT_MANUFACTURER := Xiaomi
 PRODUCT_RELEASE_NAME := spinel
 
-FOX_VERSION          := R12.1
+FOX_MAINTAINER_PATCH_VERSION          := R12.1
 OF_MAINTAINER        := mkpromvp
 FOX_BUILD_TYPE       := Unofficial
 

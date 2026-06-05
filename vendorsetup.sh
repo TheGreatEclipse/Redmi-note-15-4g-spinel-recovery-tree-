@@ -13,7 +13,7 @@ export CCACHE_EXEC=/usr/bin/ccache
 
 export LC_ALL="C"
 export TARGET_ARCH="arm64"
-export FOX_VERSION="R12.1"
+export FOX_MAINTAINER_PATCH_VERSION="R12.1"
 export OF_MAINTAINER="mkpromvp"
 export FOX_BUILD_TYPE="Unofficial"
 export FOX_AB_DEVICE="1"
