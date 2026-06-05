@@ -4,6 +4,9 @@
 # Device: Redmi Note 15 4G (spinel) - MT6789
 # For OrangeFox builds: kept. For TWRP builds: removed by workflow.
 #
+export USE_CCACHE=1
+export CCACHE_EXEC=/usr/bin/ccache
+
 
 export LC_ALL="C"
 export TARGET_ARCH="arm64"
