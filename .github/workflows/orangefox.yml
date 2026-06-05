@@ -1,4 +1,4 @@
-name: Build OrangeFox R12 – spinel
+name: Build OrangeFox R12 - spinel
 
 on:
   workflow_dispatch:
@@ -23,13 +23,11 @@ jobs:
       contents: write
 
     steps:
-      # ── 1. Checkout device tree ──────────────────────────────────
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           path: device_tree
 
-      # ── 2. Free disk space ──────────────────────────────────────
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
@@ -37,7 +35,6 @@ jobs:
           large-packages: true
           swap-storage: false
 
-      # ── 3. Swap ──────────────────────────────────────────────────
       - name: Add swap space (12 GB)
         run: |
           sudo fallocate -l 12G /swapfile
@@ -46,7 +43,6 @@ jobs:
           sudo swapon /swapfile
           free -h
 
-      # ── 4. Build environment ──────────────────────────────────────
       - name: Set up build environment
         run: |
           sudo apt-get update -qq
@@ -64,25 +60,28 @@ jobs:
           git config --global user.email "ci@spinel"
           git config --global user.name "CI"
 
-      # ── 5. Sync OrangeFox R12 ───────────────────────────────────
-      - name: Sync OrangeFox R12 (via orangefox_sync.sh)
+      - name: Sync OrangeFox R12 via repo manifest
         run: |
           export PATH="$HOME/bin:$PATH"
-          mkdir -p $GITHUB_WORKSPACE/OrangeFox
-          cd $GITHUB_WORKSPACE/OrangeFox
-          git clone https://gitlab.com/OrangeFox/sync.git --depth=1
-          cd sync && chmod +x orangefox_sync.sh
-          ./orangefox_sync.sh --branch 12.1 \
-            --path $GITHUB_WORKSPACE/OrangeFox/fox_12.1 --ssh 0 2>&1 | tail -50
+          mkdir -p $GITHUB_WORKSPACE/OrangeFox/fox_12.1
+          cd $GITHUB_WORKSPACE/OrangeFox/fox_12.1
+          repo init \
+            -u https://gitlab.com/OrangeFox/Manifest.git \
+            -b fox_12.1 \
+            --depth=1 \
+            --no-repo-verify
+          repo sync -j$(nproc) -c --force-sync \
+            --no-clone-bundle --no-tags \
+            --optimized-fetch --prune 2>&1 | tail -50
+          echo "OrangeFox R12 sync complete"
 
-      # ── 6. Copy device tree ─────────────────────────────────────
       - name: Copy device tree
         run: |
-          mkdir -p $GITHUB_WORKSPACE/OrangeFox/fox_12.1/$DEVICE_PATH
-          cp -r $GITHUB_WORKSPACE/device_tree/. \
-                $GITHUB_WORKSPACE/OrangeFox/fox_12.1/$DEVICE_PATH/
+          FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
+          mkdir -p $FOXDIR/$DEVICE_PATH
+          cp -r $GITHUB_WORKSPACE/device_tree/. $FOXDIR/$DEVICE_PATH/
+          ls -la $FOXDIR/$DEVICE_PATH/
 
-      # ── 7. ccache ───────────────────────────────────────────────
       - name: Setup ccache
         uses: actions/cache@v4
         with:
@@ -93,14 +92,14 @@ jobs:
       - name: Configure ccache
         run: ccache -M 8G
 
-      # ── 8. Build OrangeFox vendor_boot ──────────────────────────
       - name: Build OrangeFox R12 vendor_boot image
         run: |
           export PATH="$HOME/bin:$PATH"
-          cd $GITHUB_WORKSPACE/OrangeFox/fox_12.1
+          FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
+          cd $FOXDIR
           export ALLOW_MISSING_DEPENDENCIES=true
-          export LC_ALL="C"
-          export FOX_BUILD_DEVICE=spinel
+          export LC_ALL=C
+          export FOX_BUILD_DEVICE=${DEVICE_NAME}
           export FOX_AB_DEVICE=1
           export FOX_VIRTUAL_AB_DEVICE=1
           export FOX_VENDOR_BOOT_RECOVERY=1
@@ -111,14 +110,12 @@ jobs:
           export CCACHE_EXEC=$(which ccache)
           source build/envsetup.sh
           lunch fox_spinel-eng
-          mka vendorbootimage 2>&1 | tail -100
+          mka vendorbootimage -j$(nproc) 2>&1 | tail -100
 
-      # ── 9. Verify output ────────────────────────────────────────
       - name: Verify output
         run: |
           ls -lh $GITHUB_WORKSPACE/OrangeFox/fox_12.1/out/target/product/spinel/ || true
 
-      # ── 10. Upload artifacts ─────────────────────────────────────
       - name: Upload OrangeFox artifacts
         uses: actions/upload-artifact@v4
         if: success()
