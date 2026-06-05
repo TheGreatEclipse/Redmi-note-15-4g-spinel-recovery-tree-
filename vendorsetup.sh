@@ -1,22 +1,19 @@
 #!/usr/bin/env bash
 #
-# vendorsetup.sh – OrangeFox R12 Environment Variables
+# vendorsetup.sh – OrangeFox R12 / TWRP Environment Variables
 # Device: Redmi Note 15 4G (spinel) – MT6789 / Helio G100 Ultra
 # Maintained by: mkpromvp
 #
-# Usage (OrangeFox build):
-#   source build/envsetup.sh
-#   lunch fox_spinel-eng         # OrangeFox
-#   # OR
-#   lunch twrp_spinel-eng        # TWRP
-#   mka vendorbootimage
+# This file is sourced automatically by build/envsetup.sh
 #
+
+export LC_ALL="C"
 
 # ─── Architecture ────────────────────────────────────────────────────
 export TARGET_ARCH="arm64"
 
 # ─── OrangeFox Core Flags ────────────────────────────────────────────
-export FOX_VERSION="R12-spinel"
+export FOX_VERSION="R12.1"
 export OF_MAINTAINER="mkpromvp"
 export FOX_BUILD_TYPE="Unofficial"
 
@@ -28,8 +25,14 @@ export FOX_VENDOR_BOOT_RECOVERY="1"
 # Vanilla build (A/B device, non-MIUI)
 export FOX_VANILLA_BUILD="1"
 
-# LZ4 ramdisk (matches stock vendor_boot compression)
+# LZ4 ramdisk
 export OF_USE_LZ4_COMPRESSION="1"
+
+# Prebuilt kernel – avoid 'NO KERNEL CONFIG' error on GKI builds
+export OF_FORCE_PREBUILT_KERNEL="1"
+
+# Allow missing deps (minimal manifest build)
+export ALLOW_MISSING_DEPENDENCIES=true
 
 # ─── Screen Config (6.72" 1080x2400 FHD+ 20:9) ───────────────────────
 export OF_SCREEN_H="2400"
