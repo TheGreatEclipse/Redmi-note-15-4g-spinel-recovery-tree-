@@ -1,19 +1,20 @@
 #
 # Copyright (C) 2026 OrangeFox Recovery Project
-# Copyright (C) 2026 mkpromvp – Redmi Note 15 4G (spinel)
+# Copyright (C) 2026 mkpromvp - Redmi Note 15 4G (spinel)
 #
 # SPDX-License-Identifier: Apache-2.0
-#
-# OrangeFox R12 Product Makefile – spinel (Redmi Note 15 4G)
 #
 
 # Inherit AOSP base
 $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
 
+# Inherit common TWRP/OrangeFox stuff - CRITICAL for lunch registration
+$(call inherit-product, vendor/twrp/config/common.mk)
+
 # Inherit device configuration
 $(call inherit-product, device/xiaomi/spinel/device.mk)
 
-# ─── Device Identifiers ──────────────────────────────────────────────
+# ─── Device Identifiers ───────────────────────────────────────────────
 PRODUCT_DEVICE       := spinel
 PRODUCT_NAME         := fox_spinel
 PRODUCT_BRAND        := Redmi
@@ -21,12 +22,12 @@ PRODUCT_MODEL        := Redmi Note 15 4G
 PRODUCT_MANUFACTURER := Xiaomi
 PRODUCT_RELEASE_NAME := spinel
 
-# ─── OrangeFox Version ───────────────────────────────────────────────
+# ─── OrangeFox Version ────────────────────────────────────────────────
 FOX_VERSION            := R12.1
 OF_MAINTAINER          := mkpromvp
 FOX_BUILD_TYPE         := Unofficial
 
-# ─── OrangeFox Device Flags ──────────────────────────────────────────
+# ─── OrangeFox Device Flags ───────────────────────────────────────────
 FOX_AB_DEVICE              := 1
 FOX_VIRTUAL_AB_DEVICE      := 1
 FOX_VENDOR_BOOT_RECOVERY   := 1
@@ -47,7 +48,7 @@ OF_FL_PATH1                := /sys/class/leds/flashlight/brightness
 OF_FL_PATH2                := /sys/class/leds/torch-sec1/brightness
 
 # FBE / Metadata
-OF_FBE_METADATA_MOUNT_IGNORE := 1
+OF_FBE_METADATA_MOUNT_IGNORE  := 1
 OF_IGNORE_LOGICAL_MOUNT_ERRORS := 1
 
 # Dynamic partition / super size
@@ -76,6 +77,4 @@ FOX_USE_TAR_BINARY          := 1
 FOX_USE_SED_BINARY          := 1
 FOX_USE_BASH_SHELL          := 1
 FOX_ASH_IS_BASH             := 1
-
-# App Manager
 FOX_ENABLE_APP_MANAGER      := 0
