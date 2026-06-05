@@ -1,12 +1,12 @@
 #
 # Copyright (C) 2026 The Android Open Source Project
-# Copyright (C) 2026 SebaUbuntu's TWRP device tree generator
+# Copyright (C) 2026 TWRP Device Tree – Redmi Note 15 4G (spinel)
 #
 # SPDX-License-Identifier: Apache-2.0
 #
 
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/omni_spinel.mk
+    $(LOCAL_DIR)/twrp_spinel.mk
 
 COMMON_LUNCH_CHOICES := \
     twrp_spinel-user \
