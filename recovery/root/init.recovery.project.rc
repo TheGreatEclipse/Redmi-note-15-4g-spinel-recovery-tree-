@@ -1,0 +1,16 @@
+# init.recovery.project.rc – Redmi Note 15 4G (spinel)
+# Keymint / Keymaster + Gatekeeper for FBE decryption
+
+on init
+    # Enable dm-default-key for metadata encryption
+    setprop ro.crypto.dm_default_key.options_format.version 2
+    setprop ro.crypto.volume.metadata.method dm-default-key
+
+on property:hwservicemanager.ready=true
+    start vendor.keymint-default
+    start vendor.gatekeeper-1-0
+    start vendor.keymint-strongbox
+
+on property:ro.crypto.state=encrypted && property:ro.crypto.type=file
+    install_keyring
+    start keystore2
