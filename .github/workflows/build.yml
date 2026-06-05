@@ -90,10 +90,10 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/twrp/$DEVICE_PATH
           cp -r $GITHUB_WORKSPACE/device_tree/. \
                 $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
-          # Remove vendorsetup.sh to avoid lunch combo conflict in TWRP build
-          # TWRP uses COMMON_LUNCH_CHOICES in AndroidProducts.mk instead
+          # FIX: Remove vendorsetup.sh to avoid OrangeFox/TWRP lunch conflict
+          # vendorsetup.sh sources OrangeFox env, breaking "twrp_spinel-eng" lunch
           rm -f $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/vendorsetup.sh
-          echo "Device tree copied. Contents:"
+          echo "Device tree copied (vendorsetup.sh removed for TWRP):"
           ls -la $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
 
       - name: Setup ccache
@@ -117,6 +117,7 @@ jobs:
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
           source build/envsetup.sh
+          # twrp_spinel-eng is registered via COMMON_LUNCH_CHOICES in AndroidProducts.mk
           lunch twrp_spinel-eng
           mka vendorbootimage -j$(nproc) 2>&1 | tail -100
 
@@ -138,7 +139,6 @@ jobs:
           name: TWRP-${{ env.DEVICE_NAME }}-${{ github.run_number }}
           path: |
             ${{ github.workspace }}/twrp/out/target/product/${{ env.DEVICE_NAME }}/vendor_boot.img
-            ${{ github.workspace }}/twrp/out/target/product/${{ env.DEVICE_NAME }}/boot.img
           retention-days: 30
 
   # ══ Job 2 - OrangeFox R12 (fox_12.1) ═════════════════════════════
@@ -194,19 +194,16 @@ jobs:
           git config --global user.name "OrangeFox Builder"
           git config --global color.ui false
 
-      - name: Sync OrangeFox R12 via repo manifest
+      - name: Sync OrangeFox R12 via orangefox_sync.sh
         run: |
           export PATH="$HOME/bin:$PATH"
-          mkdir -p $GITHUB_WORKSPACE/OrangeFox/fox_12.1
-          cd $GITHUB_WORKSPACE/OrangeFox/fox_12.1
-          repo init \
-            -u https://gitlab.com/OrangeFox/Manifest.git \
-            -b fox_12.1 \
-            --depth=1 \
-            --no-repo-verify
-          repo sync -j$(nproc) -c --force-sync \
-            --no-clone-bundle --no-tags \
-            --optimized-fetch --prune 2>&1 | tail -50
+          # FIX: Use official orangefox_sync.sh instead of repo init from GitLab directly
+          # Direct repo init from gitlab.com/OrangeFox/Manifest.git fails with auth error
+          mkdir -p $GITHUB_WORKSPACE/OrangeFox_sync
+          cd $GITHUB_WORKSPACE/OrangeFox_sync
+          git clone https://gitlab.com/OrangeFox/sync.git --depth=1
+          cd sync
+          ./orangefox_sync.sh --branch 12.1 --path $GITHUB_WORKSPACE/OrangeFox/fox_12.1
           echo "OrangeFox R12 sync complete"
 
       - name: Copy device tree
@@ -214,7 +211,7 @@ jobs:
           FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
           mkdir -p $FOXDIR/$DEVICE_PATH
           cp -r $GITHUB_WORKSPACE/device_tree/. $FOXDIR/$DEVICE_PATH/
-          echo "Device tree copied. Contents:"
+          echo "Device tree copied:"
           ls -la $FOXDIR/$DEVICE_PATH/
 
       - name: Setup ccache
@@ -227,8 +224,6 @@ jobs:
       - name: Configure ccache
         run: |
           ccache -M 8G && ccache -z
-          echo "USE_CCACHE=1" >> $GITHUB_ENV
-          echo "CCACHE_EXEC=$(which ccache)" >> $GITHUB_ENV
 
       - name: Build OrangeFox R12 vendor_boot image
         run: |
@@ -238,29 +233,16 @@ jobs:
           export ALLOW_MISSING_DEPENDENCIES=true
           export LC_ALL=C
           export FOX_BUILD_DEVICE=${DEVICE_NAME}
-          export FOX_AB_DEVICE=1
-          export FOX_VIRTUAL_AB_DEVICE=1
-          export FOX_VENDOR_BOOT_RECOVERY=1
-          export FOX_VANILLA_BUILD=1
-          export OF_FORCE_PREBUILT_KERNEL=1
-          export OF_ENABLE_LPTOOLS=1
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
           source build/envsetup.sh
+          # vendorsetup.sh is auto-sourced and sets all OrangeFox env vars
           lunch fox_spinel-eng
           mka vendorbootimage -j$(nproc) 2>&1 | tail -100
 
       - name: Verify output
         run: |
-          FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
-          VBOOT=$FOXDIR/out/target/product/${DEVICE_NAME}/vendor_boot.img
-          if [ -f "$VBOOT" ]; then
-            echo "vendor_boot.img OK: $(du -sh $VBOOT | cut -f1)"
-          else
-            echo "vendor_boot.img NOT found"
-            ls $FOXDIR/out/target/product/${DEVICE_NAME}/ || true
-            exit 1
-          fi
+          ls -lh $GITHUB_WORKSPACE/OrangeFox/fox_12.1/out/target/product/spinel/ || true
 
       - name: Upload OrangeFox artifacts
         uses: actions/upload-artifact@v4
@@ -268,7 +250,7 @@ jobs:
         with:
           name: OrangeFox-R12-spinel-${{ github.run_number }}
           path: |
-            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img
-            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.zip
-            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/${{ env.DEVICE_NAME }}/vendor_boot.img
+            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/spinel/OrangeFox*.img
+            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/spinel/OrangeFox*.zip
+            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/spinel/vendor_boot.img
           retention-days: 30
