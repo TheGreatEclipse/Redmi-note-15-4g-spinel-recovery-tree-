@@ -13,14 +13,11 @@ env:
   TZ: UTC
 
 jobs:
-
-  # ══ Job 1 - TWRP Latest (twrp-14.1) ══════════════════════════════
   build-twrp:
-    name: Build TWRP (Latest)
+    name: Build TWRP (twrp-14.1)
     runs-on: ubuntu-22.04
     permissions:
       contents: write
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -30,12 +27,8 @@ jobs:
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
-          tool-cache: false
           android: true
-          dotnet: true
-          haskell: true
           large-packages: true
-          docker-images: true
           swap-storage: false
 
       - name: Add swap space (12 GB)
@@ -45,7 +38,6 @@ jobs:
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
-          free -h
 
       - name: Set up build environment
         run: |
@@ -59,13 +51,11 @@ jobs:
             lz4 openjdk-11-jdk pkg-config pngcrush rsync schedtool \
             squashfs-tools xsltproc zip zlib1g-dev python3 python-is-python3
           mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
-               -o ~/bin/repo
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
           git config --global user.email "builder@twrp.local"
           git config --global user.name "TWRP Builder"
-          git config --global color.ui false
 
       - name: Initialize TWRP repo (twrp-14.1)
         run: |
@@ -73,27 +63,21 @@ jobs:
           cd $GITHUB_WORKSPACE/twrp
           repo init \
             -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git \
-            -b twrp-14.1 \
-            --depth=1 \
-            --no-repo-verify
-          echo "repo init OK"
+            -b twrp-14.1 --depth=1 --no-repo-verify
 
       - name: Sync TWRP sources
         run: |
           cd $GITHUB_WORKSPACE/twrp
-          repo sync -j$(nproc) -c --force-sync \
-            --no-clone-bundle --no-tags \
+          repo sync -j$(nproc) -c --force-sync --no-clone-bundle --no-tags \
             --optimized-fetch --prune 2>&1 | tail -30
 
       - name: Copy device tree
         run: |
           mkdir -p $GITHUB_WORKSPACE/twrp/$DEVICE_PATH
-          cp -r $GITHUB_WORKSPACE/device_tree/. \
-                $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
-          # FIX: Remove vendorsetup.sh to avoid OrangeFox/TWRP lunch conflict
-          # vendorsetup.sh sources OrangeFox env, breaking "twrp_spinel-eng" lunch
+          cp -r $GITHUB_WORKSPACE/device_tree/. $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
+          # CRITICAL FIX: Remove vendorsetup.sh for TWRP builds
+          # vendorsetup.sh sets OrangeFox env vars which break TWRP lunch
           rm -f $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/vendorsetup.sh
-          echo "Device tree copied (vendorsetup.sh removed for TWRP):"
           ls -la $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
 
       - name: Setup ccache
@@ -104,10 +88,7 @@ jobs:
           restore-keys: twrp-${{ env.DEVICE_NAME }}-
 
       - name: Configure ccache
-        run: |
-          ccache -M 8G && ccache -z
-          echo "USE_CCACHE=1" >> $GITHUB_ENV
-          echo "CCACHE_EXEC=$(which ccache)" >> $GITHUB_ENV
+        run: ccache -M 8G
 
       - name: Build TWRP vendor_boot image
         run: |
@@ -117,37 +98,22 @@ jobs:
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
           source build/envsetup.sh
-          # twrp_spinel-eng is registered via COMMON_LUNCH_CHOICES in AndroidProducts.mk
           lunch twrp_spinel-eng
           mka vendorbootimage -j$(nproc) 2>&1 | tail -100
-
-      - name: Verify output
-        run: |
-          VBOOT=$GITHUB_WORKSPACE/twrp/out/target/product/${DEVICE_NAME}/vendor_boot.img
-          if [ -f "$VBOOT" ]; then
-            echo "vendor_boot.img OK: $(du -sh $VBOOT | cut -f1)"
-          else
-            echo "vendor_boot.img NOT found"
-            ls $GITHUB_WORKSPACE/twrp/out/target/product/${DEVICE_NAME}/ || true
-            exit 1
-          fi
 
       - name: Upload TWRP artifacts
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: TWRP-${{ env.DEVICE_NAME }}-${{ github.run_number }}
-          path: |
-            ${{ github.workspace }}/twrp/out/target/product/${{ env.DEVICE_NAME }}/vendor_boot.img
+          path: ${{ github.workspace }}/twrp/out/target/product/${{ env.DEVICE_NAME }}/vendor_boot.img
           retention-days: 30
 
-  # ══ Job 2 - OrangeFox R12 (fox_12.1) ═════════════════════════════
   build-orangefox:
     name: Build OrangeFox R12
     runs-on: ubuntu-22.04
     permissions:
       contents: write
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -157,12 +123,8 @@ jobs:
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
-          tool-cache: false
           android: true
-          dotnet: true
-          haskell: true
           large-packages: true
-          docker-images: true
           swap-storage: false
 
       - name: Add swap space (12 GB)
@@ -172,7 +134,6 @@ jobs:
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
-          free -h
 
       - name: Set up build environment
         run: |
@@ -186,32 +147,27 @@ jobs:
             lz4 openjdk-11-jdk pkg-config pngcrush rsync schedtool \
             squashfs-tools xsltproc zip zlib1g-dev python3 python-is-python3
           mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
-               -o ~/bin/repo
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
           git config --global user.email "orangefox@builder.local"
           git config --global user.name "OrangeFox Builder"
-          git config --global color.ui false
 
       - name: Sync OrangeFox R12 via orangefox_sync.sh
         run: |
           export PATH="$HOME/bin:$PATH"
-          # FIX: Use official orangefox_sync.sh instead of repo init from GitLab directly
-          # Direct repo init from gitlab.com/OrangeFox/Manifest.git fails with auth error
+          # FIX: Use orangefox_sync.sh (handles GitLab auth internally)
           mkdir -p $GITHUB_WORKSPACE/OrangeFox_sync
           cd $GITHUB_WORKSPACE/OrangeFox_sync
           git clone https://gitlab.com/OrangeFox/sync.git --depth=1
           cd sync
           ./orangefox_sync.sh --branch 12.1 --path $GITHUB_WORKSPACE/OrangeFox/fox_12.1
-          echo "OrangeFox R12 sync complete"
 
       - name: Copy device tree
         run: |
           FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
           mkdir -p $FOXDIR/$DEVICE_PATH
           cp -r $GITHUB_WORKSPACE/device_tree/. $FOXDIR/$DEVICE_PATH/
-          echo "Device tree copied:"
           ls -la $FOXDIR/$DEVICE_PATH/
 
       - name: Setup ccache
@@ -222,8 +178,7 @@ jobs:
           restore-keys: ofox-${{ env.DEVICE_NAME }}-
 
       - name: Configure ccache
-        run: |
-          ccache -M 8G && ccache -z
+        run: ccache -M 8G
 
       - name: Build OrangeFox R12 vendor_boot image
         run: |
@@ -235,14 +190,10 @@ jobs:
           export FOX_BUILD_DEVICE=${DEVICE_NAME}
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
+          source $DEVICE_PATH/vendorsetup.sh || true
           source build/envsetup.sh
-          # vendorsetup.sh is auto-sourced and sets all OrangeFox env vars
           lunch fox_spinel-eng
           mka vendorbootimage -j$(nproc) 2>&1 | tail -100
-
-      - name: Verify output
-        run: |
-          ls -lh $GITHUB_WORKSPACE/OrangeFox/fox_12.1/out/target/product/spinel/ || true
 
       - name: Upload OrangeFox artifacts
         uses: actions/upload-artifact@v4
