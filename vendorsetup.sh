@@ -4,8 +4,9 @@
 # Device: Redmi Note 15 4G (spinel) - MT6789 / Helio G100 Ultra
 # Maintained by: mkpromvp
 #
-# NOTE: This file is only used for OrangeFox environment setup.
-# TWRP lunch registration is handled by COMMON_LUNCH_CHOICES in AndroidProducts.mk
+# NOTE: This file is automatically sourced by build/envsetup.sh
+# For OrangeFox builds: this file is kept (sets all OrangeFox env vars)
+# For TWRP builds: this file is removed before building (see workflow files)
 #
 
 export LC_ALL="C"
@@ -70,4 +71,3 @@ export FOX_DELETE_AROMAFM="0"
 export FOX_INSTALLER_DEBUG_MODE="0"
 
 echo "[OrangeFox R12] Environment loaded for spinel (vendor_boot A/B)"
-echo "Run: lunch fox_spinel-eng && mka vendorbootimage"
