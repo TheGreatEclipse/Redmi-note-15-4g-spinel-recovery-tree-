@@ -28,9 +28,6 @@ export FOX_VANILLA_BUILD="1"
 # LZ4 ramdisk
 export OF_USE_LZ4_COMPRESSION="1"
 
-# Prebuilt kernel – avoid 'NO KERNEL CONFIG' error on GKI builds
-export OF_FORCE_PREBUILT_KERNEL="1"
-
 # Allow missing deps (minimal manifest build)
 export ALLOW_MISSING_DEPENDENCIES=true
 
