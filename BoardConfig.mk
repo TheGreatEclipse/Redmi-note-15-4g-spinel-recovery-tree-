@@ -25,7 +25,6 @@ AB_OTA_PARTITIONS += \
     vbmeta_system
 
 # ─── Vendor Boot (Recovery inside vendor_boot partition) ────────────
-# Android 13+ GKI devices: recovery ramdisk lives in vendor_boot hdr v4
 BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := true
 BOARD_USES_RECOVERY_AS_BOOT               := false
 BOARD_INCLUDE_RECOVERY_RAMDISK_IN_VENDOR_BOOT := true
@@ -34,17 +33,17 @@ BOARD_USES_GENERIC_KERNEL_IMAGE             := true
 
 # ─── Architecture ───────────────────────────────────────────────────
 TARGET_ARCH               := arm64
-TARGET_ARCH_VARIANT       := armv8-a
+TARGET_ARCH_VARIANT       := armv8-2a
 TARGET_CPU_ABI            := arm64-v8a
 TARGET_CPU_ABI2           :=
-TARGET_CPU_VARIANT        := generic
-TARGET_CPU_VARIANT_RUNTIME := cortex-a55
+TARGET_CPU_VARIANT        := cortex-a76
+TARGET_CPU_VARIANT_RUNTIME := cortex-a76
 
 TARGET_2ND_ARCH               := arm
-TARGET_2ND_ARCH_VARIANT       := armv7-a-neon
+TARGET_2ND_ARCH_VARIANT       := armv8-2a
 TARGET_2ND_CPU_ABI            := armeabi-v7a
 TARGET_2ND_CPU_ABI2           := armeabi
-TARGET_2ND_CPU_VARIANT        := generic
+TARGET_2ND_CPU_VARIANT        := cortex-a55
 TARGET_2ND_CPU_VARIANT_RUNTIME := cortex-a55
 
 # ─── APEX ───────────────────────────────────────────────────────────
@@ -58,17 +57,19 @@ TARGET_NO_BOOTLOADER         := true
 TARGET_SCREEN_DENSITY := 450
 
 # ─── Kernel (vendor_boot header v4 – GKI 6.12.30) ──────────────────
-# Kernel is prebuilt inside stock vendor_boot; we only need DTB for mkbootimg.
+# GKI device: kernel is prebuilt inside stock vendor_boot.
 BOARD_BOOTIMG_HEADER_VERSION  := 4
 BOARD_KERNEL_BASE             := 0x3fff8000
-BOARD_KERNEL_CMDLINE          := bootopt=64S3,32N2,64N2 bootconfig
-BOARD_VENDOR_CMDLINE          := bootopt=64S3,32N2,64N2
 BOARD_KERNEL_PAGESIZE         := 4096
 BOARD_RAMDISK_OFFSET          := 0x26f08000
 BOARD_KERNEL_TAGS_OFFSET      := 0x07c88000
 BOARD_DTB_OFFSET              := 0x07c88000
 BOARD_KERNEL_IMAGE_NAME       := Image
 BOARD_RAMDISK_USE_LZ4         := true
+
+# kernel cmdline
+BOARD_KERNEL_CMDLINE          := bootopt=64S3,32N2,64N2
+BOARD_VENDOR_CMDLINE          := bootopt=64S3,32N2,64N2
 
 # Mkbootimg Arguments
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOTIMG_HEADER_VERSION)
@@ -78,12 +79,12 @@ BOARD_MKBOOTIMG_ARGS += --vendor_cmdline $(BOARD_VENDOR_CMDLINE)
 BOARD_MKBOOTIMG_ARGS += --pagesize       $(BOARD_KERNEL_PAGESIZE)
 BOARD_MKBOOTIMG_ARGS += --board          ""
 
-# Prebuilt DTB only
+# Prebuilt DTB (extracted from stock OS3.0.301.0.WPGMIXM)
 TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img
 BOARD_MKBOOTIMG_ARGS += --dtb        $(TARGET_PREBUILT_DTB)
 BOARD_MKBOOTIMG_ARGS += --dtb_offset $(BOARD_DTB_OFFSET)
 
-# Disable unused prebuilts
+# Disable unused prebuilts (GKI – no standalone kernel binary needed)
 TARGET_FORCE_PREBUILT_KERNEL  :=
 BOARD_INCLUDE_DTB_IN_BOOTIMG  :=
 BOARD_KERNEL_SEPARATED_DTBO   :=
@@ -128,8 +129,8 @@ BOARD_AVB_VENDOR_BOOT_ROLLBACK_INDEX_LOCATION := 1
 PLATFORM_SECURITY_PATCH       := 2099-12-31
 VENDOR_SECURITY_PATCH         := 2099-12-31
 BOOT_SECURITY_PATCH           := 2099-12-31
-PLATFORM_VERSION              := 16
-PLATFORM_VERSION_LAST_STABLE  := $(PLATFORM_VERSION)
+PLATFORM_VERSION              := 16.0.0
+PLATFORM_VERSION_LAST_STABLE  := 16
 
 # ─── TWRP Configuration ─────────────────────────────────────────────
 TW_THEME                    := portrait_hdpi
@@ -150,6 +151,11 @@ TW_EXCLUDE_APEX             := true
 TW_EXCLUDE_LPDUMP           := false
 TW_DEVICE_VERSION           := spinel-mkpromvp-v1
 
+# Brightness
+TW_BRIGHTNESS_PATH          := /sys/class/leds/lcd-backlight/brightness
+TW_MAX_BRIGHTNESS           := 2047
+TW_DEFAULT_BRIGHTNESS       := 1200
+
 # Encryption Support (FBE + Metadata)
 TW_INCLUDE_CRYPTO            := true
 TW_INCLUDE_CRYPTO_FBE        := true
@@ -164,11 +170,13 @@ BOARD_USES_METADATA_PARTITION := true
 TW_ENABLE_SNAPUSERD := true
 
 # ─── OrangeFox R12 Extra Flags ──────────────────────────────────────
-# These are used by fox_spinel.mk / vendorsetup.sh for OrangeFox builds
 FOX_BUILD_DEVICE            := spinel
 FOX_AB_DEVICE               := 1
 FOX_VIRTUAL_AB_DEVICE       := 1
 FOX_VENDOR_BOOT_RECOVERY    := 1
+
+# Force prebuilt kernel – avoid 'NO KERNEL CONFIG' error on GKI builds
+OF_FORCE_PREBUILT_KERNEL    := 1
 
 # Debug
 TARGET_USES_LOGD   := true
