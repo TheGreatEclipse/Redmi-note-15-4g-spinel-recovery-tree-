@@ -1,4 +1,4 @@
-name: Build TWRP (twrp-14.1) – spinel
+name: Build TWRP (twrp-14.1) - spinel
 
 on:
   workflow_dispatch:
@@ -74,6 +74,11 @@ jobs:
           mkdir -p $GITHUB_WORKSPACE/twrp/$DEVICE_PATH
           cp -r $GITHUB_WORKSPACE/device_tree/. \
                 $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
+          # FIX: Remove vendorsetup.sh - causes OrangeFox env conflict in TWRP build
+          # Without this, "lunch twrp_spinel-eng" fails because OrangeFox env is loaded
+          rm -f $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/vendorsetup.sh
+          echo "Device tree copied (vendorsetup.sh removed for TWRP build):"
+          ls -la $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
 
       - name: Setup ccache
         uses: actions/cache@v4
@@ -94,6 +99,7 @@ jobs:
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
           source build/envsetup.sh
+          # twrp_spinel-eng registered via COMMON_LUNCH_CHOICES in AndroidProducts.mk
           lunch twrp_spinel-eng
           mka vendorbootimage 2>&1 | tail -100
 
