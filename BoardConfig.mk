@@ -175,9 +175,6 @@ FOX_AB_DEVICE               := 1
 FOX_VIRTUAL_AB_DEVICE       := 1
 FOX_VENDOR_BOOT_RECOVERY    := 1
 
-# Force prebuilt kernel – avoid 'NO KERNEL CONFIG' error on GKI builds
-OF_FORCE_PREBUILT_KERNEL    := 1
-
 # Debug
 TARGET_USES_LOGD   := true
 TWRP_INCLUDE_LOGCAT := true
