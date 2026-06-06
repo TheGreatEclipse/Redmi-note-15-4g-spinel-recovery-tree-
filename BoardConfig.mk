@@ -165,3 +165,10 @@ BOARD_BOOT_HEADER_VERSION := 4
 BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 67108864
 BOARD_INCLUDE_RECOVERY_RAMDISK_IN_VENDOR_BOOT := true
 include device/xiaomi/spinel/vendor_blobs/BoardConfigVendor.mk
+
+# VINTF Manifests
+DEVICE_MANIFEST_FILE += \
+    $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.gatekeeper-service.mitee.xml \
+    $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.security.keymint-service.mitee.xml \
+    $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.usb-aidl-service.mediatek.xml \
+    $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.usb.gadget-aidl-service.mediatek.xml

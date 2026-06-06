@@ -40,10 +40,6 @@ PRODUCT_COPY_FILES += \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/etc/permissions/android.hardware.usb.accessory.prebuilt.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.usb.accessory.prebuilt.xml \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/etc/permissions/android.hardware.usb.accessory.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.usb.accessory.xml \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/etc/permissions/android.hardware.usb.host.prebuilt.xml:$(TARGET_COPY_OUT_VENDOR)/etc/permissions/android.hardware.usb.host.prebuilt.xml \
-    device/xiaomi/spinel/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.gatekeeper-service.mitee.xml:$(TARGET_COPY_OUT_VENDOR)/etc/vintf/manifest/android.hardware.gatekeeper-service.mitee.xml \
-    device/xiaomi/spinel/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.security.keymint-service.mitee.xml:$(TARGET_COPY_OUT_VENDOR)/etc/vintf/manifest/android.hardware.security.keymint-service.mitee.xml \
-    device/xiaomi/spinel/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.usb-aidl-service.mediatek.xml:$(TARGET_COPY_OUT_VENDOR)/etc/vintf/manifest/android.hardware.usb-aidl-service.mediatek.xml \
-    device/xiaomi/spinel/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.usb.gadget-aidl-service.mediatek.xml:$(TARGET_COPY_OUT_VENDOR)/etc/vintf/manifest/android.hardware.usb.gadget-aidl-service.mediatek.xml \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/android.hardware.gatekeeper-V1-ndk.so:$(TARGET_COPY_OUT_VENDOR)/lib64/android.hardware.gatekeeper-V1-ndk.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/android.hardware.keymaster-V4-ndk.so:$(TARGET_COPY_OUT_VENDOR)/lib64/android.hardware.keymaster-V4-ndk.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/android.hardware.keymaster@3.0.so:$(TARGET_COPY_OUT_VENDOR)/lib64/android.hardware.keymaster@3.0.so \
