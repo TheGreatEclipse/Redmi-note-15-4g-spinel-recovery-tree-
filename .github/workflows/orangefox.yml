@@ -21,7 +21,7 @@ jobs:
       DEVICE_CODENAME:   spinel
       DEVICE_PATH:       device/xiaomi/spinel
       MANIFEST_BRANCH:   12.1
-      DUMP_RAW_BASE:     https://github.com/mkpromvp/Stock-rom-dumber/tree/dump-redmi-spinel-os3.0.301.0.wpgmixm
+      DUMP_RAW_BASE:     https://raw.githubusercontent.com/mkpromvp/Stock-rom-dumber/dump-redmi-spinel-os3.0.301.0.wpgmixm
 
     steps:
       - name: Checkout device tree
