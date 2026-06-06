@@ -1,120 +1,241 @@
-name: OrangeFox Official Build (spinel)
+name: Build OrangeFox Recovery - Redmi Note 15 4G (spinel)
 
 on:
   push:
-    branches: [ "android-12.1" ]
+    branches: [ main, android-12.1 ]
   workflow_dispatch:
     inputs:
-      create_release:
-        description: "Create GitHub Release"
-        required: false
-        default: false
-        type: boolean
-      sync_msms:
-        description: "Apply MSMS decryption patches (Qualcomm only)"
+      SYNC_MSMS:
+        description: "Sync MSMS decryption patches (Qualcomm only)"
         required: false
         default: false
         type: boolean
 
 jobs:
   build:
+    name: Build OrangeFox for spinel
     runs-on: ubuntu-22.04
     permissions:
       contents: write
-
     env:
-      DEVICE: "spinel"
-      DEVICE_PATH: "device/xiaomi/spinel"
-      MANIFEST_BRANCH: "12.1"
-      SOC_FAMILY: "mtk"
+      DEVICE_CODENAME: spinel
+      DEVICE_PATH: device/xiaomi/spinel
+      MANIFEST_BRANCH: 12.1
+      SOC_FAMILY: mtk
 
     steps:
-      - name: Checkout device tree repo
+      - name: Checkout device tree
         uses: actions/checkout@v4
         with:
           path: ${{ env.DEVICE_PATH }}
 
       - name: Free disk space
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android \
+                      /opt/ghc /usr/local/.ghcup
           sudo apt-get clean
           df -h
 
-      - name: Install dependencies
+      - name: Install build dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            git-core gnupg flex bison build-essential zip curl zlib1g-dev \
-            gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev \
-            x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev \
-            libxml2-utils xsltproc unzip fontconfig python3 python3-pip \
-            bc lzop pngcrush rsync schedtool ccache openjdk-11-jdk
+            git-core gnupg flex bison build-essential zip curl \
+            zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
+            libncurses5 lib32ncurses5-dev x11proto-core-dev \
+            libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils \
+            xsltproc unzip fontconfig python3 python3-pip bc \
+            lzop pngcrush rsync schedtool ccache openjdk-11-jdk aria2
 
-      - name: Install repo tool
+      - name: Configure git
+        run: |
+          git config --global user.name "MkProMVP-Build"
+          git config --global user.email "build@localhost"
+          git config --global color.ui false
+
+      - name: Install repo
         run: |
           mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
+            -o ~/bin/repo
           chmod +x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Init and sync OrangeFox sources (official method)
+      - name: Setup build environment
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/OrangeFox_sync"
-          cd "$GITHUB_WORKSPACE/OrangeFox_sync"
-          git clone --depth=1 https://gitlab.com/OrangeFox/sync.git
-          cd sync
-          ./orangefox_sync.sh --branch "${MANIFEST_BRANCH}" --path "$GITHUB_WORKSPACE/OrangeFox"
+          git clone https://gitlab.com/OrangeFox/misc/scripts /tmp/ofox_scripts
+          cd /tmp/ofox_scripts
+          sudo bash setup/android_build_env.sh
 
-      - name: Place device tree
+      - name: Init and Sync OrangeFox manifest
         run: |
-          DEST="$GITHUB_WORKSPACE/OrangeFox/${DEVICE_PATH}"
+          mkdir -p $GITHUB_WORKSPACE/OrangeFox_src
+          git clone https://gitlab.com/OrangeFox/sync.git /tmp/ofox_sync
+          cd /tmp/ofox_sync
+          mkdir -p $GITHUB_WORKSPACE/OrangeFox_src/${{ env.DEVICE_PATH }}
+          cp -r $GITHUB_WORKSPACE/${{ env.DEVICE_PATH }}/. \
+            $GITHUB_WORKSPACE/OrangeFox_src/${{ env.DEVICE_PATH }}/
+          ./orangefox_sync.sh \
+            --branch ${{ env.MANIFEST_BRANCH }} \
+            --path $GITHUB_WORKSPACE/OrangeFox_src
+
+      - name: Place device tree (force overwrite after sync)
+        run: |
+          DEST="$GITHUB_WORKSPACE/OrangeFox_src/${{ env.DEVICE_PATH }}"
           rm -rf "$DEST"
-          mkdir -p "$(dirname "$DEST")"
-          cp -r "$GITHUB_WORKSPACE/${DEVICE_PATH}" "$DEST"
+          cp -r "$GITHUB_WORKSPACE/${{ env.DEVICE_PATH }}" "$DEST"
+          rm -rf "$DEST/.git"
+          echo "=== Device tree files ==="
+          ls -la "$DEST/"
 
-      - name: Apply MSMS decryption patches (Qualcomm only)
-        if: ${{ inputs.sync_msms == true && env.SOC_FAMILY == 'msm' }}
-        working-directory: OrangeFox
+      - name: Verify vendor/fox exists
+        run: |
+          if [ ! -f "$GITHUB_WORKSPACE/OrangeFox_src/vendor/fox/config/common.mk" ]; then
+            echo "::error::vendor/fox/config/common.mk NOT FOUND — cloning manually"
+            mkdir -p $GITHUB_WORKSPACE/OrangeFox_src/vendor/fox
+            git clone https://gitlab.com/OrangeFox/vendor/recovery.git \
+              $GITHUB_WORKSPACE/OrangeFox_src/vendor/fox --depth=1 \
+              -b fox_${{ env.MANIFEST_BRANCH }}
+          else
+            echo "vendor/fox/config/common.mk found"
+          fi
+
+      - name: Apply MSMS decryption patches
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.SYNC_MSMS == true && env.SOC_FAMILY == 'msm' }}
+        working-directory: OrangeFox_src
         run: |
           cd bootable/recovery
-          git remote add ofox-upstream https://gitlab.com/OrangeFox/bootable/Recovery.git 2>/dev/null || true
+          git remote add ofox-upstream \
+            https://gitlab.com/OrangeFox/bootable/Recovery.git 2>/dev/null || true
           git fetch ofox-upstream fox_${{ env.MANIFEST_BRANCH }} --depth=1
           echo "OrangeFox Recovery upstream fetched."
 
-      - name: Build vendor_boot image
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 2G
+          key: ofox-spinel-${{ env.MANIFEST_BRANCH }}
+
+      - name: Build OrangeFox
+        working-directory: OrangeFox_src
         run: |
-          cd "$GITHUB_WORKSPACE/OrangeFox"
-          export ALLOW_MISSING_DEPENDENCIES=true
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
+          export CCACHE_DIR=/tmp/ccache
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export BUILD_BROKEN_USES_BUILD_COPY_HEADERS=true
+          export BUILD_BROKEN_VENDOR_PROPERTY_NAMESPACE=true
+          set +e
           source build/envsetup.sh
-          lunch fox_${DEVICE}-eng
-          mka vendorbootimage -j"$(nproc)"
+          set -e
+          lunch fox_${{ env.DEVICE_CODENAME }}-eng
+          mka adbd vendorbootimage -j$(nproc) 2>&1 | tee /tmp/build.log
+          BUILD_EXIT=${PIPESTATUS[0]}
 
-      - name: Export build info
+          echo "=== BUILD ERRORS & WARNINGS ===" > /tmp/build_errors.log
+          echo "Run #${{ github.run_number }} — $(date)" >> /tmp/build_errors.log
+          echo "========================================" >> /tmp/build_errors.log
+          grep -iE "^(.*error:|.*warning:|make:|FAILED:|ninja:|fatal:)" /tmp/build.log \
+            >> /tmp/build_errors.log || true
+          echo "" >> /tmp/build_errors.log
+          echo "=== LAST 100 LINES ===" >> /tmp/build_errors.log
+          tail -100 /tmp/build.log >> /tmp/build_errors.log
+
+          exit $BUILD_EXIT
+
+      - name: Check output files
         run: |
-          OUT_DIR="$GITHUB_WORKSPACE/OrangeFox/out/target/product/${DEVICE}"
-          echo "OUT_DIR=$OUT_DIR" >> "$GITHUB_ENV"
-          echo "BUILD_DATE=$(date +%Y%m%d)" >> "$GITHUB_ENV"
-          ls -lh "$OUT_DIR"
+          OUT_DIR="$GITHUB_WORKSPACE/OrangeFox_src/out/target/product/${{ env.DEVICE_CODENAME }}"
+          echo "OUT_DIR=$OUT_DIR" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
-      - name: Upload artifact
+          echo "=== Files in OUT_DIR ==="
+          ls -lh "$OUT_DIR/" || echo "OUT_DIR not found!"
+
+          if [ -f "$OUT_DIR/vendor_boot.img" ]; then
+            echo "CHECK_VENDOR_BOOT=true" >> $GITHUB_ENV
+            echo "MD5_IMG=$(md5sum $OUT_DIR/vendor_boot.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
+            echo "vendor_boot.img found"
+          else
+            echo "CHECK_VENDOR_BOOT=false" >> $GITHUB_ENV
+            echo "::error::vendor_boot.img NOT found!"
+          fi
+
+          if ls "$OUT_DIR"/OrangeFox*.zip 2>/dev/null; then
+            echo "CHECK_ZIP=true" >> $GITHUB_ENV
+            echo "MD5_ZIP=$(md5sum $OUT_DIR/OrangeFox*.zip | cut -d ' ' -f 1)" >> $GITHUB_ENV
+            echo "OrangeFox zip found"
+          else
+            echo "CHECK_ZIP=false" >> $GITHUB_ENV
+            echo "::warning::OrangeFox zip not found"
+          fi
+
+      - name: Upload recovery artifact
+        if: env.CHECK_VENDOR_BOOT == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: OrangeFox-${{ env.DEVICE }}-${{ env.BUILD_DATE }}
+          name: OrangeFox-${{ env.MANIFEST_BRANCH }}-spinel-MkProMVP-${{ env.BUILD_DATE }}
           path: |
             ${{ env.OUT_DIR }}/vendor_boot.img
             ${{ env.OUT_DIR }}/OrangeFox*.zip
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Create release
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.create_release == true }}
+      - name: Upload build errors log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-errors-spinel-${{ github.run_number }}
+          path: /tmp/build_errors.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Collect all logs on failure
+        if: failure()
+        run: |
+          mkdir -p /tmp/fail_logs
+          [ -f /tmp/build.log ] && cp /tmp/build.log /tmp/fail_logs/ || true
+          [ -f /tmp/build_errors.log ] && cp /tmp/build_errors.log /tmp/fail_logs/ || true
+          find $GITHUB_WORKSPACE/OrangeFox_src/out -name "*.log" 2>/dev/null \
+            | head -20 \
+            | xargs -I{} sh -c 'cp "{}" /tmp/fail_logs/$(basename "{}")' || true
+          echo "=== ENV DUMP ===" > /tmp/fail_logs/env.log
+          env >> /tmp/fail_logs/env.log
+
+      - name: Upload all logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-spinel-${{ github.run_number }}
+          path: /tmp/fail_logs/
+          retention-days: 7
+
+      - name: Create GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && env.CHECK_VENDOR_BOOT == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: OFOX-${{ env.DEVICE }}-${{ env.BUILD_DATE }}-${{ github.run_number }}
-          name: OrangeFox R12 spinel ${{ env.BUILD_DATE }}
+          tag_name: AKRO-${{ github.run_number }}
+          name: "OrangeFox Redmi Note 15 4G (spinel) by MkProMVP #${{ github.run_number }}"
+          fail_on_unmatched_files: false
+          body: |
+            **Device:** Redmi Note 15 4G (spinel) — MT6789
+            **ROM Base:** HyperOS OS3.0.301.0.WPGMIXM (Android 16)
+            **OrangeFox branch:** ${{ env.MANIFEST_BRANCH }}
+            **Maintainer:** MkProMVP — UNOFFICIAL
+            **Date:** ${{ env.BUILD_DATE }}
+            **MD5 (vendor_boot):** ${{ env.MD5_IMG }}
+            **MD5 (zip):** ${{ env.MD5_ZIP }}
+
+            ### Flash
+            ```
+            fastboot flash vendor_boot vendor_boot.img
+            ```
+            - A/B device — recovery inside vendor_boot
+            - FBE decryption for HyperOS 3 / Android 16
           files: |
             ${{ env.OUT_DIR }}/vendor_boot.img
             ${{ env.OUT_DIR }}/OrangeFox*.zip
-          fail_on_unmatched_files: false
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
