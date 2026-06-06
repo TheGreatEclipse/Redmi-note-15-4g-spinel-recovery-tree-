@@ -129,7 +129,7 @@ jobs:
           set +e
           source build/envsetup.sh
           set -e
-          lunch twrp_${{ env.DEVICE_CODENAME }}-eng
+          lunch fox_${{ env.DEVICE_CODENAME }}-eng
           mka adbd vendorbootimage -j$(nproc) 2>&1 | tee /tmp/build.log
           BUILD_EXIT=${PIPESTATUS[0]}
 
