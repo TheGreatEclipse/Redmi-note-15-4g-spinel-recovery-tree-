@@ -1,9 +1,6 @@
 # Auto-generated from proprietary-files.txt (downloaded blobs only)
 PRODUCT_COPY_FILES += \
     device/xiaomi/spinel/vendor_blobs/proprietary/aosp-device-tree/rootdir/etc/fstab.mt6789:$(TARGET_COPY_OUT_RECOVERY)/root/first_stage_ramdisk/fstab.mt6789 \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/bin/gatekeeperd:$(TARGET_COPY_OUT_SYSTEM)/bin/gatekeeperd \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/etc/init/gatekeeperd.rc:$(TARGET_COPY_OUT_SYSTEM)/etc/init/gatekeeperd.rc \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib/libgatekeeper.so:$(TARGET_COPY_OUT_SYSTEM)/lib/libgatekeeper.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.gatekeeper-V1-ndk.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.gatekeeper-V1-ndk.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.gatekeeper@1.0.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.gatekeeper@1.0.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.keymaster@3.0.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.keymaster@3.0.so \
@@ -14,7 +11,6 @@ PRODUCT_COPY_FILES += \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.usb.gadget-V1-ndk.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.usb.gadget-V1-ndk.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.usb.gadget@1.0.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.usb.gadget@1.0.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/lib_android_keymaster_keymint_utils.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/lib_android_keymaster_keymint_utils.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libgatekeeper.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libgatekeeper.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libgatekeeper_aidl.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libgatekeeper_aidl.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libkeymaster4_1support.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libkeymaster4_1support.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libkeymaster4support.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libkeymaster4support.so \
@@ -50,7 +46,6 @@ PRODUCT_COPY_FILES += \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/android.hardware.usb-V3-ndk.so:$(TARGET_COPY_OUT_VENDOR)/lib64/android.hardware.usb-V3-ndk.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/android.hardware.usb.gadget-V1-ndk.so:$(TARGET_COPY_OUT_VENDOR)/lib64/android.hardware.usb.gadget-V1-ndk.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/lib_android_keymaster_keymint_utils.so:$(TARGET_COPY_OUT_VENDOR)/lib64/lib_android_keymaster_keymint_utils.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/libgatekeeper.so:$(TARGET_COPY_OUT_VENDOR)/lib64/libgatekeeper.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/libkeymaster4support.so:$(TARGET_COPY_OUT_VENDOR)/lib64/libkeymaster4support.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/libkeymaster_messages.so:$(TARGET_COPY_OUT_VENDOR)/lib64/libkeymaster_messages.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/lib64/libkeymaster_portable.so:$(TARGET_COPY_OUT_VENDOR)/lib64/libkeymaster_portable.so \
