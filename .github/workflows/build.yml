@@ -1,4 +1,4 @@
-name: OrangeFox R12 Official Build (spinel)
+name: OrangeFox Official Build (spinel)
 
 on:
   push:
@@ -10,6 +10,11 @@ on:
         required: false
         default: false
         type: boolean
+      sync_msms:
+        description: "Apply MSMS decryption patches (Qualcomm only)"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
@@ -18,13 +23,16 @@ jobs:
       contents: write
 
     env:
-      DEVICE: spinel
-      DEVICE_PATH: device/xiaomi/spinel
-      OFOX_BRANCH: 12.1
+      DEVICE: "spinel"
+      DEVICE_PATH: "device/xiaomi/spinel"
+      MANIFEST_BRANCH: "12.1"
+      SOC_FAMILY: "mtk"
 
     steps:
       - name: Checkout device tree repo
         uses: actions/checkout@v4
+        with:
+          path: ${{ env.DEVICE_PATH }}
 
       - name: Free disk space
         run: |
@@ -39,8 +47,8 @@ jobs:
             git-core gnupg flex bison build-essential zip curl zlib1g-dev \
             gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev \
             x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev \
-            libxml2-utils xsltproc unzip fontconfig python3 bc lzop \
-            pngcrush rsync schedtool ccache openjdk-11-jdk
+            libxml2-utils xsltproc unzip fontconfig python3 python3-pip \
+            bc lzop pngcrush rsync schedtool ccache openjdk-11-jdk
 
       - name: Install repo tool
         run: |
@@ -49,35 +57,45 @@ jobs:
           chmod +x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Init and sync OrangeFox sources
+      - name: Init and sync OrangeFox sources (official method)
         run: |
-          mkdir -p $GITHUB_WORKSPACE/OrangeFox
-          cd $GITHUB_WORKSPACE/OrangeFox
-          repo init -u https://gitlab.com/OrangeFox/sync.git -b $OFOX_BRANCH
-          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune -j$(nproc)
+          mkdir -p "$GITHUB_WORKSPACE/OrangeFox_sync"
+          cd "$GITHUB_WORKSPACE/OrangeFox_sync"
+          git clone --depth=1 https://gitlab.com/OrangeFox/sync.git
+          cd sync
+          ./orangefox_sync.sh --branch "${MANIFEST_BRANCH}" --path "$GITHUB_WORKSPACE/OrangeFox"
 
       - name: Place device tree
         run: |
-          cd $GITHUB_WORKSPACE/OrangeFox
-          rm -rf $DEVICE_PATH
-          mkdir -p device/xiaomi
-          rsync -a --delete --exclude OrangeFox --exclude .git "$GITHUB_WORKSPACE/" "$DEVICE_PATH/"
+          DEST="$GITHUB_WORKSPACE/OrangeFox/${DEVICE_PATH}"
+          rm -rf "$DEST"
+          mkdir -p "$(dirname "$DEST")"
+          cp -r "$GITHUB_WORKSPACE/${DEVICE_PATH}" "$DEST"
+
+      - name: Apply MSMS decryption patches (Qualcomm only)
+        if: ${{ inputs.sync_msms == true && env.SOC_FAMILY == 'msm' }}
+        working-directory: OrangeFox
+        run: |
+          cd bootable/recovery
+          git remote add ofox-upstream https://gitlab.com/OrangeFox/bootable/Recovery.git 2>/dev/null || true
+          git fetch ofox-upstream fox_${{ env.MANIFEST_BRANCH }} --depth=1
+          echo "OrangeFox Recovery upstream fetched."
 
       - name: Build vendor_boot image
         run: |
-          cd $GITHUB_WORKSPACE/OrangeFox
+          cd "$GITHUB_WORKSPACE/OrangeFox"
           export ALLOW_MISSING_DEPENDENCIES=true
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
           source build/envsetup.sh
           lunch fox_${DEVICE}-eng
-          mka vendorbootimage -j$(nproc)
+          mka vendorbootimage -j"$(nproc)"
 
       - name: Export build info
         run: |
           OUT_DIR="$GITHUB_WORKSPACE/OrangeFox/out/target/product/${DEVICE}"
-          echo "OUT_DIR=$OUT_DIR" >> $GITHUB_ENV
-          echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+          echo "OUT_DIR=$OUT_DIR" >> "$GITHUB_ENV"
+          echo "BUILD_DATE=$(date +%Y%m%d)" >> "$GITHUB_ENV"
           ls -lh "$OUT_DIR"
 
       - name: Upload artifact
