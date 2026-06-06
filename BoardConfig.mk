@@ -23,7 +23,6 @@ AB_OTA_PARTITIONS += \
     vbmeta_system
 
 BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT    := true
-BOARD_USES_RECOVERY_AS_BOOT                     := false
 BOARD_INCLUDE_RECOVERY_RAMDISK_IN_VENDOR_BOOT   := true
 TARGET_NO_RECOVERY                              := true
 BOARD_USES_GENERIC_KERNEL_IMAGE                 := true
