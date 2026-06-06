@@ -82,25 +82,6 @@ jobs:
           rm -rf "$DEST"
           cp -r "$GITHUB_WORKSPACE/${{ env.DEVICE_PATH }}" "$DEST"
 
-      - name: Download prebuilt kernel
-        run: |
-          PREBUILT_DIR="$GITHUB_WORKSPACE/OrangeFox_src/${{ env.DEVICE_PATH }}/prebuilt"
-          mkdir -p "$PREBUILT_DIR"
-          if [ -f "$PREBUILT_DIR/kernel" ]; then
-            echo "Kernel already present — skipping."
-          else
-            echo "Downloading kernel from stock dump..."
-            curl -fL \
-              "${{ env.DUMP_RAW_BASE }}/boot/kernel" \
-              -o "$PREBUILT_DIR/kernel"
-            echo "Done: $(ls -lh $PREBUILT_DIR/kernel)"
-          fi
-          if [ -f "$PREBUILT_DIR/dtb.img" ]; then
-            echo "dtb.img already present."
-          else
-            echo "::warning::dtb.img not found in prebuilt!"
-          fi
-
       - name: Apply MSMS decryption patches
         if: ${{ github.event.inputs.SYNC_MSMS != 'false' }}
         working-directory: OrangeFox_src

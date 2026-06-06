@@ -68,16 +68,6 @@ jobs:
           mkdir -p "$DEST"
           cp -r $GITHUB_WORKSPACE/device_tree/. "$DEST/"
 
-      - name: Download prebuilt kernel from stock dump
-        run: |
-          PREBUILT=$GITHUB_WORKSPACE/OrangeFox/${{ env.DEVICE_PATH }}/prebuilt
-          mkdir -p "$PREBUILT"
-          RAW="https://raw.githubusercontent.com/mkpromvp/Stock-rom-dumber/dump-redmi-spinel-os3.0.301.0.wpgmixm"
-          echo "Downloading kernel..."
-          curl -fL "$RAW/boot/kernel" -o "$PREBUILT/kernel"
-          ls -lh "$PREBUILT/kernel"
-          file "$PREBUILT/kernel"
-
       - name: Setup ccache
         uses: actions/cache@v4
         with:
