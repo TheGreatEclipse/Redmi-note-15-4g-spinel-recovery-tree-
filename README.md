@@ -53,7 +53,7 @@ repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aos
 repo sync -c --no-tags --no-clone-bundle --optimized-fetch --prune -j$(nproc)
 
 # 2. Clone device tree
-git clone https://github.com/mkpromvp/Redmi-note-15-4g-spinel-recovery-tree- device/xiaomi/spinel
+git clone https://github.com/TheGreatEclipse/Redmi-note-15-4g-spinel-recovery-tree- device/xiaomi/spinel
 
 # 3. Build
 source build/envsetup.sh
