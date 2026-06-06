@@ -115,7 +115,7 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           max-size: 2G
-          key: ofox-fire-${{ env.MANIFEST_BRANCH }}
+          key: ofox-spinel-${{ env.MANIFEST_BRANCH }}
 
       - name: Build OrangeFox
         working-directory: OrangeFox_src
@@ -175,7 +175,7 @@ jobs:
         if: env.CHECK_VENDOR_BOOT == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: OrangeFox-${{ env.MANIFEST_BRANCH }}-fire-AKRO-${{ env.BUILD_DATE }}
+          name: spinel-by-MkProMVP-${{ env.BUILD_DATE }}
           path: |
             ${{ env.OUT_DIR }}/vendor_boot.img
             ${{ env.OUT_DIR }}/OrangeFox*.zip
@@ -186,7 +186,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: build-errors-fire-${{ github.run_number }}
+          name: build-errors-spinel-${{ github.run_number }}
           path: /tmp/build_errors.log
           if-no-files-found: ignore
           retention-days: 14

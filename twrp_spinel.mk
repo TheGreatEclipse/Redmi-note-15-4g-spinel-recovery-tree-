@@ -16,4 +16,4 @@ PRODUCT_MODEL        := Redmi Note 15 4G
 PRODUCT_MANUFACTURER := Xiaomi
 PRODUCT_RELEASE_NAME := spinel
 
-TW_DEVICE_VERSION := spinel-mkpromvp-v1
+TW_DEVICE_VERSION := spinel-by-MkProMVP

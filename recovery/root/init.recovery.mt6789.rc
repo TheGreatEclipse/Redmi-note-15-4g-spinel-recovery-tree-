@@ -53,14 +53,14 @@ service mtk.plpath.utils.link /system/bin/mtk_plpath_utils
     disabled
     seclabel u:r:recovery:s0
 
-service vendor.gatekeeper-1-0 /vendor/bin/hw/android.hardware.gatekeeper@1.0-service
+service vendor.gatekeeper-1-0 /vendor/bin/hw/android.hardware.gatekeeper-service.mitee
     interface android.hardware.gatekeeper@1.0::IGatekeeper default
     user root
     group root
     disabled
     seclabel u:r:recovery:s0
 
-service vendor.keymint-trustonic /vendor/bin/hw/android.hardware.security.keymint-service.trustonic
+service vendor.keymint-mitee /vendor/bin/hw/android.hardware.security.keymint@4.0-service.mitee
     class early_hal
     interface android.hardware.keymaster@4.0::IKeymasterDevice default
     interface android.hardware.keymaster@4.1::IKeymasterDevice default
@@ -80,7 +80,7 @@ service mobicore /vendor/bin/mcDriverDaemon \
 on property:ro.crypto.state=encrypted && property:ro.boot.dynamic_partitions=true
     start mobicore
     start vendor.gatekeeper-1-0
-    start vendor.keymint-trustonic
+    start vendor.keymint-mitee
 
 on property:servicemanager.ready=true
     setprop sys.boot_completed 1

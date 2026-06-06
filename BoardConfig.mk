@@ -135,7 +135,7 @@ TW_FRAMERATE                := 60
 TARGET_USES_MKE2FS          := true
 TW_EXCLUDE_APEX             := true
 TW_EXCLUDE_LPDUMP           := false
-TW_DEVICE_VERSION           := spinel-mkpromvp-v1
+TW_DEVICE_VERSION           := spinel-by-MkProMVP
 
 TW_BRIGHTNESS_PATH          := /sys/class/leds/lcd-backlight/brightness
 TW_MAX_BRIGHTNESS           := 2047
