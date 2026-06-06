@@ -207,7 +207,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-log-fire-${{ github.run_number }}
+          name: build-log-spinel-${{ github.run_number }}
           path: /tmp/fail_logs/
           retention-days: 7
 
@@ -216,13 +216,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: AKRO-${{ github.run_number }}
-          name: "OrangeFox fire AKRO Build #${{ github.run_number }}"
+          name: "OrangeFox spinel MkProMVP Build #${{ github.run_number }}"
           fail_on_unmatched_files: false
           body: |
-            **Device:** Redmi 12 (fire) — MT6768
-            **ROM Base:** HyperOS 2.0.207.0.VMXMIXM (Android 15)
+            **Device:** Redmi note 15 4g (spinel) —
+            **ROM Base:** HyperOS 3.0.301.0.WPGMIXM (Android 16)
             **OrangeFox branch:** ${{ env.MANIFEST_BRANCH }}
-            **Maintainer:** AKRO — UNOFFICIAL
+            **Maintainer:** MkProMVP — UNOFFICIAL
             **Date:** ${{ env.BUILD_DATE }}
             **MD5 (vendor_boot):** ${{ env.MD5_IMG }}
             **MD5 (zip):** ${{ env.MD5_ZIP }}
@@ -232,7 +232,7 @@ jobs:
             fastboot flash vendor_boot vendor_boot.img
             ```
             - A/B device — الريكفري جوه vendor_boot
-            - FBE decryption لـ HyperOS 2 / Android 15
+            - FBE decryption لـ HyperOS 3 / Android 16
           files: |
             ${{ env.OUT_DIR }}/vendor_boot.img
             ${{ env.OUT_DIR }}/OrangeFox*.zip
