@@ -66,4 +66,4 @@ PRODUCT_SOONG_NAMESPACES += device/xiaomi/spinel
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.twrp.vendor_boot=true \
     ro.recovery.vendor_boot=1
-$(call inherit-product, vendor/xiaomi/spinel/spinel-vendor.mk)
+$(call inherit-product-if-exists, device/xiaomi/spinel/vendor_blobs/spinel-vendor.mk)
