@@ -1,65 +1,102 @@
-name: OrangeFox Build - spinel
+name: OrangeFox R12 Official Build (spinel)
 
 on:
   push:
-    branches: [main, android-12.1]
+    branches: [ "android-12.1" ]
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Create GitHub Release"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    env:
+      DEVICE: spinel
+      DEVICE_PATH: device/xiaomi/spinel
+      OFOX_BRANCH: fox_12.1
+
     steps:
-      - name: Checkout
+      - name: Checkout device tree repo
         uses: actions/checkout@v4
-        with:
-          path: device/xiaomi/spinel
 
-      - name: Cleanup & Swap
+      - name: Free disk space
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo swapoff -a || true
-          sudo rm -f /swapfile
-          sudo fallocate -l 12G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup
+          sudo apt-get clean
+          df -h
 
-      - name: Install Build Tools
+      - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y bc bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf lib32ncurses5-dev lib32z1-dev liblz4-tool libncurses5 libssl-dev libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 python-is-python3
-          # تثبيت repo يدوياً (الطريقة المضمونة)
+          sudo apt-get install -y --no-install-recommends \
+            git-core gnupg flex bison build-essential zip curl zlib1g-dev \
+            gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev \
+            x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev \
+            libxml2-utils xsltproc unzip fontconfig python3 bc lzop \
+            pngcrush rsync schedtool ccache openjdk-11-jdk
+
+      - name: Install repo tool
+        run: |
           mkdir -p ~/bin
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-          chmod a+x ~/bin/repo
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
+          chmod +x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Sync OrangeFox
+      - name: Init and sync OrangeFox sources
         run: |
-          mkdir of_source
-          cd of_source
-          # استخدام المانيفست الرسمي مباشرة لتجنب مشاكل السكربتات
-          repo init -u https://gitlab.com/OrangeFox/sync.git -b fox_12.1 --depth=1
-          repo sync -c -j$(nproc) --force-sync --no-clone-bundle --no-tags
+          mkdir -p $GITHUB_WORKSPACE/OrangeFox
+          cd $GITHUB_WORKSPACE/OrangeFox
+          repo init -u https://gitlab.com/OrangeFox/sync.git -b $OFOX_BRANCH
+          repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune -j$(nproc)
 
-      - name: Build
+      - name: Place device tree
         run: |
-          cd of_source
-          # التأكد من مكان التري
-          rm -rf device/xiaomi/spinel
+          cd $GITHUB_WORKSPACE/OrangeFox
+          rm -rf $DEVICE_PATH
           mkdir -p device/xiaomi
-          cp -r ../device/xiaomi/spinel device/xiaomi/
-          
-          # إعداد البيئة والبناء
+          cp -r $GITHUB_WORKSPACE $DEVICE_PATH
+
+      - name: Build vendor_boot image
+        run: |
+          cd $GITHUB_WORKSPACE/OrangeFox
           export ALLOW_MISSING_DEPENDENCIES=true
-          export FOX_BUILD_DEVICE=spinel
+          export USE_CCACHE=1
+          export CCACHE_EXEC=$(which ccache)
           source build/envsetup.sh
-          lunch fox_spinel-eng || lunch twrp_spinel-eng
+          lunch fox_${DEVICE}-eng
           mka vendorbootimage -j$(nproc)
 
-      - name: Upload
-        if: success()
+      - name: Export build info
+        run: |
+          OUT_DIR="$GITHUB_WORKSPACE/OrangeFox/out/target/product/${DEVICE}"
+          echo "OUT_DIR=$OUT_DIR" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+          ls -lh "$OUT_DIR"
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OrangeFox-spinel-Success
-          path: of_source/out/target/product/spinel/vendor_boot.img
+          name: OrangeFox-${{ env.DEVICE }}-${{ env.BUILD_DATE }}
+          path: |
+            ${{ env.OUT_DIR }}/vendor_boot.img
+            ${{ env.OUT_DIR }}/OrangeFox*.zip
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Create release
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.create_release == true }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: OFOX-${{ env.DEVICE }}-${{ env.BUILD_DATE }}-${{ github.run_number }}
+          name: OrangeFox R12 spinel ${{ env.BUILD_DATE }}
+          files: |
+            ${{ env.OUT_DIR }}/vendor_boot.img
+            ${{ env.OUT_DIR }}/OrangeFox*.zip
+          fail_on_unmatched_files: false
