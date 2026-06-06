@@ -95,7 +95,7 @@ jobs:
             mkdir -p $GITHUB_WORKSPACE/OrangeFox_src/vendor/fox
             git clone https://gitlab.com/OrangeFox/vendor/recovery.git \
               $GITHUB_WORKSPACE/OrangeFox_src/vendor/fox --depth=1 \
-              -b fox_${{ env.MANIFEST_BRANCH }}
+              -b ${{ env.MANIFEST_BRANCH }}
           else
             echo "vendor/fox/config/common.mk found"
           fi
