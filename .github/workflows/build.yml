@@ -61,7 +61,7 @@ jobs:
           cd $GITHUB_WORKSPACE/OrangeFox
           rm -rf $DEVICE_PATH
           mkdir -p device/xiaomi
-          cp -r $GITHUB_WORKSPACE $DEVICE_PATH
+          rsync -a --delete --exclude OrangeFox --exclude .git "$GITHUB_WORKSPACE/" "$DEVICE_PATH/"
 
       - name: Build vendor_boot image
         run: |
