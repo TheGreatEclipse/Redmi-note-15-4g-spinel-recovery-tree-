@@ -1,207 +1,125 @@
-name: Build TWRP & OrangeFox R12 Recovery
+name: Build OrangeFox R12 - spinel
 
 on:
   push:
-    branches: [main]
-  pull_request:
     branches: [main]
   workflow_dispatch:
 
 env:
   DEVICE_NAME: spinel
   DEVICE_PATH: device/xiaomi/spinel
-  TZ: UTC
 
 jobs:
-  build-twrp:
-    name: Build TWRP (twrp-14.1)
+  build:
+    name: OrangeFox R12 vendor_boot
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout device tree
         uses: actions/checkout@v4
         with:
           path: device_tree
 
-      - name: Free Disk Space
+      - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
           android: true
           large-packages: true
           swap-storage: false
 
-      - name: Add swap space (12 GB)
+      - name: Add swap (12GB)
         run: |
-          sudo swapoff -a || true
           sudo fallocate -l 12G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
 
-      - name: Set up build environment
+      - name: Install dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             bc bison build-essential ccache curl flex \
-            g++-multilib gcc-multilib git git-lfs gnupg gperf \
-            imagemagick lib32ncurses5-dev lib32readline-dev \
-            lib32z1-dev liblz4-tool libncurses5 libncurses5-dev \
-            libsdl1.2-dev libssl-dev libtinfo5 libxml2 libxml2-utils \
-            lz4 openjdk-11-jdk pkg-config pngcrush rsync schedtool \
-            squashfs-tools xsltproc zip zlib1g-dev python3 python-is-python3
+            g++-multilib gcc-multilib git gnupg \
+            lib32ncurses5-dev lib32z1-dev liblz4-tool \
+            libncurses5 libssl-dev lz4 openjdk-11-jdk \
+            python3 python-is-python3 rsync zip
           mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
-          chmod a+x ~/bin/repo
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
+            -o ~/bin/repo
+          chmod +x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
-          git config --global user.email "builder@twrp.local"
-          git config --global user.name "TWRP Builder"
+          git config --global user.email "build@local"
+          git config --global user.name "Builder"
 
-      - name: Initialize TWRP repo (twrp-14.1)
+      - name: Sync OrangeFox R12 sources
         run: |
-          mkdir -p $GITHUB_WORKSPACE/twrp
-          cd $GITHUB_WORKSPACE/twrp
-          repo init \
-            -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git \
-            -b twrp-14.1 --depth=1 --no-repo-verify
-
-      - name: Sync TWRP sources
-        run: |
-          cd $GITHUB_WORKSPACE/twrp
-          repo sync -j$(nproc) -c --force-sync --no-clone-bundle --no-tags \
-            --optimized-fetch --prune 2>&1 | tail -30
-
-      - name: Copy device tree
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/twrp/$DEVICE_PATH
-          cp -r $GITHUB_WORKSPACE/device_tree/. $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
-          # CRITICAL FIX: Remove vendorsetup.sh for TWRP builds
-          # vendorsetup.sh sets OrangeFox env vars which break TWRP lunch
-          rm -f $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/vendorsetup.sh
-          ls -la $GITHUB_WORKSPACE/twrp/$DEVICE_PATH/
-
-      - name: Setup ccache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: twrp-${{ env.DEVICE_NAME }}-${{ github.sha }}
-          restore-keys: twrp-${{ env.DEVICE_NAME }}-
-
-      - name: Configure ccache
-        run: ccache -M 8G
-
-      - name: Build TWRP vendor_boot image
-        run: |
-          cd $GITHUB_WORKSPACE/twrp
-          export ALLOW_MISSING_DEPENDENCIES=true
-          export LC_ALL=C
-          export USE_CCACHE=1
-          export CCACHE_EXEC=$(which ccache)
-          source build/envsetup.sh
-          lunch twrp_spinel-eng
-          mka vendorbootimage -j$(nproc) 2>&1 | tail -100
-
-      - name: Upload TWRP artifacts
-        uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: TWRP-${{ env.DEVICE_NAME }}-${{ github.run_number }}
-          path: ${{ github.workspace }}/twrp/out/target/product/${{ env.DEVICE_NAME }}/vendor_boot.img
-          retention-days: 30
-
-  build-orangefox:
-    name: Build OrangeFox R12
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          path: device_tree
-
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          android: true
-          large-packages: true
-          swap-storage: false
-
-      - name: Add swap space (12 GB)
-        run: |
-          sudo swapoff -a || true
-          sudo fallocate -l 12G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-
-      - name: Set up build environment
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            bc bison build-essential ccache curl flex \
-            g++-multilib gcc-multilib git git-lfs gnupg gperf \
-            imagemagick lib32ncurses5-dev lib32readline-dev \
-            lib32z1-dev liblz4-tool libncurses5 libncurses5-dev \
-            libsdl1.2-dev libssl-dev libtinfo5 libxml2 libxml2-utils \
-            lz4 openjdk-11-jdk pkg-config pngcrush rsync schedtool \
-            squashfs-tools xsltproc zip zlib1g-dev python3 python-is-python3
-          mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo -o ~/bin/repo
-          chmod a+x ~/bin/repo
-          echo "$HOME/bin" >> $GITHUB_PATH
-          git config --global user.email "orangefox@builder.local"
-          git config --global user.name "OrangeFox Builder"
-
-      - name: Sync OrangeFox R12 via orangefox_sync.sh
-        run: |
-          export PATH="$HOME/bin:$PATH"
-          # FIX: Use orangefox_sync.sh (handles GitLab auth internally)
           mkdir -p $GITHUB_WORKSPACE/OrangeFox_sync
           cd $GITHUB_WORKSPACE/OrangeFox_sync
           git clone https://gitlab.com/OrangeFox/sync.git --depth=1
           cd sync
-          ./orangefox_sync.sh --branch 12.1 --path $GITHUB_WORKSPACE/OrangeFox/fox_12.1
+          ./orangefox_sync.sh --branch 12.1 \
+            --path $GITHUB_WORKSPACE/OrangeFox
 
-      - name: Copy device tree
+      - name: Place device tree
         run: |
-          FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
-          mkdir -p $FOXDIR/$DEVICE_PATH
-          cp -r $GITHUB_WORKSPACE/device_tree/. $FOXDIR/$DEVICE_PATH/
-          ls -la $FOXDIR/$DEVICE_PATH/
+          DEST=$GITHUB_WORKSPACE/OrangeFox/${{ env.DEVICE_PATH }}
+          mkdir -p "$DEST"
+          cp -r $GITHUB_WORKSPACE/device_tree/. "$DEST/"
+
+      - name: Download prebuilt kernel from stock dump
+        run: |
+          PREBUILT=$GITHUB_WORKSPACE/OrangeFox/${{ env.DEVICE_PATH }}/prebuilt
+          mkdir -p "$PREBUILT"
+          RAW="https://raw.githubusercontent.com/mkpromvp/Stock-rom-dumber/dump-redmi-spinel-os3.0.301.0.wpgmixm"
+          echo "Downloading kernel..."
+          curl -fL "$RAW/boot/kernel" -o "$PREBUILT/kernel"
+          ls -lh "$PREBUILT/kernel"
+          file "$PREBUILT/kernel"
 
       - name: Setup ccache
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ofox-${{ env.DEVICE_NAME }}-${{ github.sha }}
-          restore-keys: ofox-${{ env.DEVICE_NAME }}-
+          key: ofox-spinel-${{ github.sha }}
+          restore-keys: ofox-spinel-
 
-      - name: Configure ccache
-        run: ccache -M 8G
-
-      - name: Build OrangeFox R12 vendor_boot image
+      - name: Build OrangeFox
         run: |
-          export PATH="$HOME/bin:$PATH"
-          FOXDIR=$GITHUB_WORKSPACE/OrangeFox/fox_12.1
-          cd $FOXDIR
+          cd $GITHUB_WORKSPACE/OrangeFox
           export ALLOW_MISSING_DEPENDENCIES=true
-          export LC_ALL=C
-          export FOX_BUILD_DEVICE=${DEVICE_NAME}
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
-          source $DEVICE_PATH/vendorsetup.sh || true
+          ccache -M 8G
+          export FOX_BUILD_DEVICE=spinel
+          export FOX_AB_DEVICE=1
+          export FOX_VIRTUAL_AB_DEVICE=1
+          export FOX_VENDOR_BOOT_RECOVERY=1
           source build/envsetup.sh
           lunch fox_spinel-eng
-          mka vendorbootimage -j$(nproc) 2>&1 | tail -100
+          mka vendorbootimage -j$(nproc) 2>&1 | tee /tmp/build.log
+          echo "=== LAST 50 LINES ===" && tail -50 /tmp/build.log
 
-      - name: Upload OrangeFox artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload artifacts
         if: success()
+        uses: actions/upload-artifact@v4
         with:
-          name: OrangeFox-R12-spinel-${{ github.run_number }}
+          name: OrangeFox-spinel-${{ github.run_number }}
           path: |
-            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/spinel/OrangeFox*.img
-            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/spinel/OrangeFox*.zip
-            ${{ github.workspace }}/OrangeFox/fox_12.1/out/target/product/spinel/vendor_boot.img
+            ${{ github.workspace }}/OrangeFox/out/target/product/spinel/vendor_boot.img
+            ${{ github.workspace }}/OrangeFox/out/target/product/spinel/OrangeFox*.zip
           retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.run_number }}
+          path: /tmp/build.log
+          retention-days: 7
+EOF
+
+git add .github/workflows/build.yml
+git commit -m "workflow: clean OrangeFox-only build with correct kernel download"
+git push
