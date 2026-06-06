@@ -59,18 +59,20 @@ jobs:
         run: |
           mkdir -p $GITHUB_WORKSPACE/OrangeFox_sync
           cd $GITHUB_WORKSPACE/OrangeFox_sync
-          repo init -u https://gitlab.com/OrangeFox/sync.git -b 12.1 --depth=1
-          repo sync -c --no-tags --no-clone-bundle --optimized-fetch --prune -j$(nproc)
+          git clone https://gitlab.com/OrangeFox/sync.git --depth=1 sync
+          cd sync
+          ./orangefox_sync.sh --branch 12.1 --path $GITHUB_WORKSPACE/OrangeFox
 
       - name: Place device tree
         run: |
-          DEST=$GITHUB_WORKSPACE/OrangeFox_sync/device/xiaomi/spinel
+          # المسار بعد المزامنة بيبقى في المجلد اللي حددناه بالـ --path
+          DEST=$GITHUB_WORKSPACE/OrangeFox/${{ env.DEVICE_PATH }}
           mkdir -p "$DEST"
           cp -r $GITHUB_WORKSPACE/device_tree/. "$DEST/"
 
       - name: Build OrangeFox
         run: |
-          cd $GITHUB_WORKSPACE/OrangeFox_sync
+          cd $GITHUB_WORKSPACE/OrangeFox
           export ALLOW_MISSING_DEPENDENCIES=true
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
@@ -85,5 +87,14 @@ jobs:
         with:
           name: OrangeFox-spinel-${{ github.run_number }}
           path: |
-            OrangeFox_sync/out/target/product/spinel/vendor_boot.img
-            OrangeFox_sync/out/target/product/spinel/OrangeFox*.zip
+            OrangeFox/out/target/product/spinel/vendor_boot.img
+            OrangeFox/out/target/product/spinel/OrangeFox*.zip
+          retention-days: 7
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.run_number }}
+          path: OrangeFox/out/target/product/spinel/build.log
+          if-no-files-found: ignore
