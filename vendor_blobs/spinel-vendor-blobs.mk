@@ -1,24 +1,6 @@
 # Auto-generated from proprietary-files.txt (downloaded blobs only)
 PRODUCT_COPY_FILES += \
     device/xiaomi/spinel/vendor_blobs/proprietary/aosp-device-tree/rootdir/etc/fstab.mt6789:$(TARGET_COPY_OUT_RECOVERY)/root/first_stage_ramdisk/fstab.mt6789 \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.gatekeeper-V1-ndk.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.gatekeeper-V1-ndk.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.gatekeeper@1.0.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.gatekeeper@1.0.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.keymaster@3.0.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.keymaster@3.0.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.keymaster@4.0.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.keymaster@4.0.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.keymaster@4.1.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.keymaster@4.1.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.security.keymint-V1-cpp.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.security.keymint-V1-cpp.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.security.keymint-V4-ndk.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.security.keymint-V4-ndk.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.usb.gadget-V1-ndk.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.usb.gadget-V1-ndk.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/android.hardware.usb.gadget@1.0.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/android.hardware.usb.gadget@1.0.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/lib_android_keymaster_keymint_utils.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/lib_android_keymaster_keymint_utils.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libgatekeeper_aidl.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libgatekeeper_aidl.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libkeymaster4_1support.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libkeymaster4_1support.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libkeymaster4support.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libkeymaster4support.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libkeymaster_messages.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libkeymaster_messages.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libkeymaster_portable.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libkeymaster_portable.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libkeymint.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libkeymint.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libkeymint_support.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libkeymint_support.so \
-    device/xiaomi/spinel/vendor_blobs/proprietary/system/lib64/libpuresoftkeymasterdevice.so:$(TARGET_COPY_OUT_SYSTEM)/lib64/libpuresoftkeymasterdevice.so \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/bin/hw/android.hardware.boot-service.mtk:$(TARGET_COPY_OUT_VENDOR)/bin/hw/android.hardware.boot-service.mtk \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/bin/hw/android.hardware.gatekeeper-service.mitee:$(TARGET_COPY_OUT_VENDOR)/bin/hw/android.hardware.gatekeeper-service.mitee \
     device/xiaomi/spinel/vendor_blobs/proprietary/vendor/bin/hw/android.hardware.security.keymint@4.0-service.mitee:$(TARGET_COPY_OUT_VENDOR)/bin/hw/android.hardware.security.keymint@4.0-service.mitee \

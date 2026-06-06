@@ -184,3 +184,7 @@ DEVICE_MANIFEST_FILES += \
     $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.usb.gadget-aidl-service.mediatek.xml
 # Safety — relax VINTF strictness for TWRP
 BUILD_BROKEN_VINTF_CHECKS := true
+
+# Relax VINTF / kernel checks for GKI prebuilt recovery tree
+PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false
+BUILD_BROKEN_DUP_RULES := true
