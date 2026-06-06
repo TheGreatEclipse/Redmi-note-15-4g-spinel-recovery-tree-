@@ -20,7 +20,7 @@ jobs:
     env:
       DEVICE: spinel
       DEVICE_PATH: device/xiaomi/spinel
-      OFOX_BRANCH: fox_12.1
+      OFOX_BRANCH: 12.1
 
     steps:
       - name: Checkout device tree repo
