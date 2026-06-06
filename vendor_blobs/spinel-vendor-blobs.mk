@@ -1,6 +1,6 @@
 # Auto-generated from proprietary-files.txt (downloaded blobs only)
 PRODUCT_COPY_FILES += \
-    device/xiaomi/spinel/vendor_blobs/proprietary/aosp-device-tree/rootdir/etc/fstab.mt6789:recovery/root/rootdir/etc/fstab.mt6789 \
+    device/xiaomi/spinel/vendor_blobs/proprietary/aosp-device-tree/rootdir/etc/fstab.mt6789:$(TARGET_COPY_OUT_RECOVERY)/root/first_stage_ramdisk/fstab.mt6789 \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/bin/gatekeeperd:$(TARGET_COPY_OUT_SYSTEM)/bin/gatekeeperd \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/etc/init/gatekeeperd.rc:$(TARGET_COPY_OUT_SYSTEM)/etc/init/gatekeeperd.rc \
     device/xiaomi/spinel/vendor_blobs/proprietary/system/lib/libgatekeeper.so:$(TARGET_COPY_OUT_SYSTEM)/lib/libgatekeeper.so \
