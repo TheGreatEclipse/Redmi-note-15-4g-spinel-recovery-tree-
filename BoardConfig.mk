@@ -186,3 +186,6 @@ BUILD_BROKEN_VINTF_CHECKS := true
 
 # Relax VINTF / kernel checks for GKI prebuilt recovery tree
 BUILD_BROKEN_DUP_RULES := true
+
+# BootConfig support for Android 16 kernel (GKI 6.12.30)
+BOARD_BOOTCONFIG := bootopt=64S3,32N2,64N2
