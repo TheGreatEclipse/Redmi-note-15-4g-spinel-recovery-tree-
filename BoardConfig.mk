@@ -163,7 +163,7 @@ TARGET_NO_RECOVERY := true
 BOARD_BOOT_HEADER_VERSION := 4
 BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 67108864
 BOARD_INCLUDE_RECOVERY_RAMDISK_IN_VENDOR_BOOT := true
-include device/xiaomi/spinel/vendor_blobs/BoardConfigVendor.mk
+-include $(DEVICE_PATH)/vendor_blobs/BoardConfigVendor.mk
 
 # VINTF Manifests
 DEVICE_MANIFEST_FILE += \
