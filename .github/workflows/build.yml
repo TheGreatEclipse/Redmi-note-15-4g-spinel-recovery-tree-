@@ -118,8 +118,3 @@ jobs:
           name: build-log-${{ github.run_number }}
           path: /tmp/build.log
           retention-days: 7
-EOF
-
-git add .github/workflows/build.yml
-git commit -m "workflow: clean OrangeFox-only build with correct kernel download"
-git push
