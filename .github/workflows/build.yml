@@ -1,4 +1,4 @@
-name: Build OrangeFox R12 - spinel
+name: OrangeFox Build - spinel
 
 on:
   push:
@@ -12,37 +12,52 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          path: device/xiaomi/spinel
+          path: device_tree
 
       - name: Free Space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo apt-get clean
+          sudo swapoff -a || true
+          sudo rm -f /swapfile
+          sudo fallocate -l 12G /swapfile
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
 
-      - name: Install Repo
+      - name: Install Dependencies
         run: |
-          mkdir ~/bin
+          sudo apt-get update -qq
+          sudo apt-get install -y git-repo python3 curl rsync bc bison build-essential libssl-dev lz4
+          mkdir -p ~/bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+x ~/bin/repo
           echo "$HOME/bin" >> $GITHUB_PATH
 
       - name: Sync OrangeFox
         run: |
-          mkdir of
-          cd of
-          repo init -u https://gitlab.com/OrangeFox/sync.git -b 12.1 --depth=1
-          repo sync -c -j$(nproc) --force-sync --no-clone-bundle --no-tags
+          git clone https://gitlab.com/OrangeFox/sync.git --depth=1 sync_repo
+          cd sync_repo
+          # السكربت هو اللي بيعرف يتعامل مع فرع 12.1
+          ./orangefox_sync.sh --branch 12.1 --path $GITHUB_WORKSPACE/fox_src
+
+      - name: Place Tree
+        run: |
+          # حط التري في المكان الصح
+          mkdir -p $GITHUB_WORKSPACE/fox_src/device/xiaomi/spinel
+          cp -r $GITHUB_WORKSPACE/device_tree/. $GITHUB_WORKSPACE/fox_src/device/xiaomi/spinel/
 
       - name: Build
         run: |
-          cd of
-          # نقل التري للمكان الصح
-          rm -rf device/xiaomi/spinel
-          mkdir -p device/xiaomi
-          cp -r ../device/xiaomi/spinel device/xiaomi/
-          
-          # البناء
+          cd $GITHUB_WORKSPACE/fox_src
           export ALLOW_MISSING_DEPENDENCIES=true
           source build/envsetup.sh
-          lunch fox_spinel-eng || (echo "Lunch failed, trying manual" && lunch twrp_spinel-eng)
+          # جرب fox_spinel ولو فشل جرب twrp_spinel كاحتياط
+          lunch fox_spinel-eng || lunch twrp_spinel-eng
           mka vendorbootimage -j$(nproc)
+
+      - name: Upload
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OrangeFox-spinel
+          path: fox_src/out/target/product/spinel/vendor_boot.img
