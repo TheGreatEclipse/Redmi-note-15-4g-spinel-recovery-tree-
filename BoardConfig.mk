@@ -186,5 +186,4 @@ DEVICE_MANIFEST_FILES += \
 BUILD_BROKEN_VINTF_CHECKS := true
 
 # Relax VINTF / kernel checks for GKI prebuilt recovery tree
-PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false
 BUILD_BROKEN_DUP_RULES := true

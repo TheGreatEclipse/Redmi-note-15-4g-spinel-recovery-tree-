@@ -23,22 +23,18 @@ AB_OTA_POSTINSTALL_CONFIG += \
     POSTINSTALL_OPTIONAL_vendor=true
 
 PRODUCT_PACKAGES += \
-    gatekeeperd \
     update_engine \
     update_verifier \
     update_engine_sideload
 
 PRODUCT_PACKAGES += \
-    gatekeeperd \
     fastbootd
 
 PRODUCT_PACKAGES += \
-    gatekeeperd \
     snapuserd
 
 # FIX: Missing MTK Boot Control HAL - required for A/B slot switching
 PRODUCT_PACKAGES += \
-    gatekeeperd \
     android.hardware.boot@1.2-mtkimpl \
     android.hardware.boot@1.2-mtkimpl.recovery
 
@@ -47,18 +43,15 @@ PRODUCT_PACKAGES_DEBUG += \
 
 # FIX: Missing mtk_plpath_utils - required for preloader partition symlinks
 PRODUCT_PACKAGES += \
-    gatekeeperd \
     mtk_plpath_utils \
     mtk_plpath_utils.recovery
 
 PRODUCT_PACKAGES += \
-    gatekeeperd \
     android.hardware.health@2.1-impl \
     android.hardware.health@2.1-service
 
 # FIX: Missing keymint packages - required for FBE decryption
 PRODUCT_PACKAGES += \
-    gatekeeperd \
     android.hardware.keymaster@4.1 \
     android.hardware.security.keymint \
     android.hardware.security.secureclock \
@@ -74,4 +67,8 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.twrp.vendor_boot=true \
     ro.recovery.vendor_boot=1
 $(call inherit-product, device/xiaomi/spinel/vendor_blobs/spinel-vendor.mk)
+PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false
+
+# Gatekeeper and VINTF Fixes
+PRODUCT_PACKAGES += gatekeeperd
 PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false
