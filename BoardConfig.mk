@@ -172,3 +172,15 @@ DEVICE_MANIFEST_FILE += \
     $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.security.keymint-service.mitee.xml \
     $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.usb-aidl-service.mediatek.xml \
     $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.usb.gadget-aidl-service.mediatek.xml
+
+# VINTF manifests (must NOT come from PRODUCT_COPY_FILES)
+DEVICE_MANIFEST_FILES += \
+    $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.gatekeeper-service.mitee.xml
+DEVICE_MANIFEST_FILES += \
+    $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.security.keymint-service.mitee.xml
+DEVICE_MANIFEST_FILES += \
+    $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.usb-aidl-service.mediatek.xml
+DEVICE_MANIFEST_FILES += \
+    $(DEVICE_PATH)/vendor_blobs/proprietary/vendor/etc/vintf/manifest/android.hardware.usb.gadget-aidl-service.mediatek.xml
+# Safety — relax VINTF strictness for TWRP
+BUILD_BROKEN_VINTF_CHECKS := true
