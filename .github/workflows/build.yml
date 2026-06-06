@@ -21,6 +21,7 @@ jobs:
       DEVICE_CODENAME: spinel
       DEVICE_PATH: device/xiaomi/spinel
       MANIFEST_BRANCH: 12.1
+      FOX_VENDOR_BRANCH: fox_12.1
       SOC_FAMILY: mtk
 
     steps:
@@ -95,7 +96,7 @@ jobs:
             mkdir -p $GITHUB_WORKSPACE/OrangeFox_src/vendor/fox
             git clone https://gitlab.com/OrangeFox/vendor/recovery.git \
               $GITHUB_WORKSPACE/OrangeFox_src/vendor/fox --depth=1 \
-              -b ${{ env.MANIFEST_BRANCH }}
+              -b ${{ env.FOX_VENDOR_BRANCH }}
           else
             echo "vendor/fox/config/common.mk found"
           fi
