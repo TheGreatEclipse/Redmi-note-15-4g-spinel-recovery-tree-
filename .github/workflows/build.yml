@@ -12,9 +12,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          path: device_tree
+          path: device/xiaomi/spinel
 
-      - name: Free Space
+      - name: Cleanup & Swap
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo swapoff -a || true
@@ -24,10 +24,11 @@ jobs:
           sudo mkswap /swapfile
           sudo swapon /swapfile
 
-      - name: Install Dependencies
+      - name: Install Build Tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y git-repo python3 curl rsync bc bison build-essential libssl-dev lz4
+          sudo apt-get install -y bc bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf lib32ncurses5-dev lib32z1-dev liblz4-tool libncurses5 libssl-dev libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev python3 python-is-python3
+          # تثبيت repo يدوياً (الطريقة المضمونة)
           mkdir -p ~/bin
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
           chmod a+x ~/bin/repo
@@ -35,23 +36,24 @@ jobs:
 
       - name: Sync OrangeFox
         run: |
-          git clone https://gitlab.com/OrangeFox/sync.git --depth=1 sync_repo
-          cd sync_repo
-          # السكربت هو اللي بيعرف يتعامل مع فرع 12.1
-          ./orangefox_sync.sh --branch 12.1 --path $GITHUB_WORKSPACE/fox_src
-
-      - name: Place Tree
-        run: |
-          # حط التري في المكان الصح
-          mkdir -p $GITHUB_WORKSPACE/fox_src/device/xiaomi/spinel
-          cp -r $GITHUB_WORKSPACE/device_tree/. $GITHUB_WORKSPACE/fox_src/device/xiaomi/spinel/
+          mkdir of_source
+          cd of_source
+          # استخدام المانيفست الرسمي مباشرة لتجنب مشاكل السكربتات
+          repo init -u https://gitlab.com/OrangeFox/sync.git -b fox_12.1 --depth=1
+          repo sync -c -j$(nproc) --force-sync --no-clone-bundle --no-tags
 
       - name: Build
         run: |
-          cd $GITHUB_WORKSPACE/fox_src
+          cd of_source
+          # التأكد من مكان التري
+          rm -rf device/xiaomi/spinel
+          mkdir -p device/xiaomi
+          cp -r ../device/xiaomi/spinel device/xiaomi/
+          
+          # إعداد البيئة والبناء
           export ALLOW_MISSING_DEPENDENCIES=true
+          export FOX_BUILD_DEVICE=spinel
           source build/envsetup.sh
-          # جرب fox_spinel ولو فشل جرب twrp_spinel كاحتياط
           lunch fox_spinel-eng || lunch twrp_spinel-eng
           mka vendorbootimage -j$(nproc)
 
@@ -59,5 +61,5 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: OrangeFox-spinel
-          path: fox_src/out/target/product/spinel/vendor_boot.img
+          name: OrangeFox-spinel-Success
+          path: of_source/out/target/product/spinel/vendor_boot.img
