@@ -26,7 +26,7 @@ jobs:
       OUT_DIR: OrangeFox_src/out/target/product/spinel
 
 # ─────────────────────────────────────────────
-# DEVICE TREE
+# CHECKOUT DEVICE TREE
 # ─────────────────────────────────────────────
 
     steps:
@@ -36,7 +36,7 @@ jobs:
           path: OrangeFox_src/device/xiaomi/spinel
 
 # ─────────────────────────────────────────────
-# FREE SPACE
+# CLEAN RUNNER
 # ─────────────────────────────────────────────
 
       - name: Free disk space
@@ -47,7 +47,7 @@ jobs:
           df -h
 
 # ─────────────────────────────────────────────
-# DEPENDENCIES (MINIMAL FAST)
+# DEPENDENCIES
 # ─────────────────────────────────────────────
 
       - name: Install dependencies
@@ -82,7 +82,7 @@ jobs:
           restore-keys: ccache-${{ runner.os }}-
 
 # ─────────────────────────────────────────────
-# INIT ORANGEFOX
+# INIT SOURCE
 # ─────────────────────────────────────────────
 
       - name: Init OrangeFox
@@ -93,7 +93,7 @@ jobs:
             -b fox_${{ env.MANIFEST_BRANCH }} --depth=1
 
 # ─────────────────────────────────────────────
-# SYNC SOURCE (FAST MODE)
+# SYNC SOURCE (FAST)
 # ─────────────────────────────────────────────
 
       - name: Sync source
@@ -108,7 +108,7 @@ jobs:
             -j$(nproc)
 
 # ─────────────────────────────────────────────
-# PATCH (MSMS OPTIONAL)
+# OPTIONAL MSM PATCHES
 # ─────────────────────────────────────────────
 
       - name: Apply MSMS patches
@@ -148,9 +148,7 @@ jobs:
           lunch fox_${{ env.DEVICE_CODENAME }}-eng
 
           mka vendorbootimage -j$(nproc) 2>&1 | tee /tmp/build.log
-          BUILD_EXIT=${PIPESTATUS[0]}
-
-          exit $BUILD_EXIT
+          exit ${PIPESTATUS[0]}
 
 # ─────────────────────────────────────────────
 # OUTPUT CHECK
@@ -178,19 +176,24 @@ jobs:
             OrangeFox_src/out/target/product/spinel/*.zip
 
 # ─────────────────────────────────────────────
-# TELEGRAM SUCCESS (LOG INCLUDED)
+# TELEGRAM SUCCESS (FIXED SAFE VERSION)
 # ─────────────────────────────────────────────
 
       - name: Telegram success + log
         if: success()
         run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
-          -d chat_id="${{ secrets.TG_CHAT_ID }}" \
-          -d text="✅ BUILD SUCCESS
+          MESSAGE=$(cat <<EOF
+✅ BUILD SUCCESS
 
 📱 Device: spinel
 ⚡ OrangeFox/TWRP build complete
-📦 Uploading log..."
+📦 Uploading build log...
+EOF
+)
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TG_CHAT_ID }}" \
+            --data-urlencode text="$MESSAGE"
 
           if [ -f /tmp/build.log ]; then
             gzip -f /tmp/build.log
@@ -201,18 +204,23 @@ jobs:
           fi
 
 # ─────────────────────────────────────────────
-# TELEGRAM FAILURE (LOG INCLUDED)
+# TELEGRAM FAILURE (FIXED SAFE VERSION)
 # ─────────────────────────────────────────────
 
       - name: Telegram failure + log
         if: failure()
         run: |
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
-          -d chat_id="${{ secrets.TG_CHAT_ID }}" \
-          -d text="❌ BUILD FAILED
+          MESSAGE=$(cat <<EOF
+❌ BUILD FAILED
 
 📱 Device: spinel
-🔍 Sending build log..."
+🔍 Sending build log for debugging...
+EOF
+)
+
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TG_CHAT_ID }}" \
+            --data-urlencode text="$MESSAGE"
 
           if [ -f /tmp/build.log ]; then
             gzip -f /tmp/build.log
