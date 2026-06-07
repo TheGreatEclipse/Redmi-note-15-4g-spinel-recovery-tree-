@@ -55,6 +55,14 @@ jobs:
           git config --global user.email "build@localhost"
           git config --global color.ui false
 
+      - name: Install repo
+        run: |
+          mkdir -p ~/bin
+          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
+            -o ~/bin/repo
+          chmod +x ~/bin/repo
+          echo "$HOME/bin" >> $GITHUB_PATH
+
       - name: Sync OrangeFox source (official sync script)
         run: |
           mkdir -p ~/OrangeFox_sync
