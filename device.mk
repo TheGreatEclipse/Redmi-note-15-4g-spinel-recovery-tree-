@@ -66,9 +66,9 @@ PRODUCT_SOONG_NAMESPACES += device/xiaomi/spinel
 PRODUCT_PROPERTY_OVERRIDES += \
     ro.twrp.vendor_boot=true \
     ro.recovery.vendor_boot=1
-$(call inherit-product, device/xiaomi/spinel/vendor_blobs/spinel-vendor.mk)
-PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false
+$(call inherit-product-if-exists, device/xiaomi/spinel/vendor_blobs/spinel-vendor.mk)
 
 # Gatekeeper and VINTF Fixes
+
 PRODUCT_PACKAGES += gatekeeperd
 PRODUCT_OTA_ENFORCE_VINTF_KERNEL_REQUIREMENTS := false

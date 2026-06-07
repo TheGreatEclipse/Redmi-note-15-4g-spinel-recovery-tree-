@@ -2,12 +2,13 @@
 # Recovery fstab for TWRP (vendor_boot partition layout)
 
 # ── Logical partitions ────────────────────────────────────────
-system       /system      auto  ro  wait,slotselect,logical
-vendor       /vendor      auto  ro  wait,slotselect,logical
-product      /product     auto  ro  wait,slotselect,logical
-system_ext   /system_ext  auto  ro  wait,slotselect,logical
-vendor_dlkm  /vendor_dlkm auto  ro  wait,slotselect,logical
-odm_dlkm     /odm_dlkm   auto  ro  wait,slotselect,logical
+system       /system      erofs  ro  wait,slotselect,logical
+vendor       /vendor      erofs  ro  wait,slotselect,logical
+product      /product     erofs  ro  wait,slotselect,logical
+system_ext   /system_ext  erofs  ro  wait,slotselect,logical
+vendor_dlkm  /vendor_dlkm erofs  ro  wait,slotselect,logical
+odm_dlkm     /odm_dlkm   erofs  ro  wait,slotselect,logical
+system_dlkm  /system_dlkm erofs  ro  wait,slotselect,logical
 
 # ── Userdata / Metadata (FBE) ─────────────────────────────────
 /dev/block/by-name/metadata /metadata ext4 noatime,nosuid,nodev,discard wait,check,formattable
@@ -15,7 +16,6 @@ odm_dlkm     /odm_dlkm   auto  ro  wait,slotselect,logical
 
 # ── Misc / Cache ──────────────────────────────────────────────
 /dev/block/by-name/misc   /misc   emmc defaults defaults
-/dev/block/by-name/tranfs /cache  ext4 noatime,nosuid,nodev,discard wait,check,formattable,nofail
 
 # ── Flashable partitions (TWRP backup/restore) ────────────────
 /boot           emmc /dev/block/by-name/boot           flags=display=boot;slotselect;backup;flashimg

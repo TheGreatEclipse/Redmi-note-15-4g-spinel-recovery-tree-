@@ -10,7 +10,7 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
 
 # CRITICAL FIX: OrangeFox R12 uses vendor/fox/config/common.mk
 # Using vendor/twrp/config/common.mk breaks fox_spinel lunch target
-$(call inherit-product, vendor/fox/config/common.mk)
+-include vendor/fox/config/common.mk
 
 # Inherit device configuration
 $(call inherit-product, device/xiaomi/spinel/device.mk)

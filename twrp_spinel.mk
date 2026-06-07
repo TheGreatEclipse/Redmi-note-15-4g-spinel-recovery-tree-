@@ -6,7 +6,7 @@
 #
 
 $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
-$(call inherit-product, vendor/twrp/config/common.mk)
+-include vendor/twrp/config/common.mk
 $(call inherit-product, device/xiaomi/spinel/device.mk)
 
 PRODUCT_DEVICE       := spinel
