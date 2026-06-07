@@ -23,6 +23,7 @@ jobs:
       MANIFEST_BRANCH: 12.1
       FOX_VENDOR_BRANCH: fox_12.1
       SOC_FAMILY: mtk
+      FOX_SRC: ${{ github.workspace }}/fox_12.1
 
     steps:
       - name: Checkout device tree
@@ -53,63 +54,43 @@ jobs:
           git config --global user.name "MkProMVP-Build"
           git config --global user.email "build@localhost"
           git config --global color.ui false
-          # Route all GitLab requests through token auth (no interactive prompt)
-          git config --global url."https://oauth2:${{ secrets.GL_TOKEN }}@gitlab.com".insteadOf "https://gitlab.com"
 
-      - name: Install repo
+      - name: Sync OrangeFox source (official sync script)
         run: |
-          mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
-            -o ~/bin/repo
-          chmod +x ~/bin/repo
-          echo "$HOME/bin" >> $GITHUB_PATH
-
-      - name: Init OrangeFox manifest
-        run: |
-          mkdir -p $GITHUB_WORKSPACE/OrangeFox_src
-          cd $GITHUB_WORKSPACE/OrangeFox_src
-          repo init \
-            -u https://gitlab.com/OrangeFox/manifest.git \
-            -b fox_${{ env.MANIFEST_BRANCH }} \
-            --depth=1
-
-      - name: Sync OrangeFox source
-        run: |
-          cd $GITHUB_WORKSPACE/OrangeFox_src
-          repo sync -c \
-            --current-branch \
-            --no-tags \
-            --no-clone-bundle \
-            --optimized-fetch \
-            --prune \
-            -j$(nproc)
+          mkdir -p ~/OrangeFox_sync
+          cd ~/OrangeFox_sync
+          git clone https://gitlab.com/OrangeFox/sync.git
+          cd ~/OrangeFox_sync/sync
+          ./orangefox_sync.sh \
+            --branch ${{ env.MANIFEST_BRANCH }} \
+            --path ${{ env.FOX_SRC }}
 
       - name: Place device tree
         run: |
-          DEST="$GITHUB_WORKSPACE/OrangeFox_src/${{ env.DEVICE_PATH }}"
+          DEST="${{ env.FOX_SRC }}/${{ env.DEVICE_PATH }}"
           rm -rf "$DEST"
-          cp -r "$GITHUB_WORKSPACE/${{ env.DEVICE_PATH }}" "$DEST"
+          cp -r "${{ github.workspace }}/${{ env.DEVICE_PATH }}" "$DEST"
           rm -rf "$DEST/.git"
           echo "=== Device tree files ==="
           ls -la "$DEST/"
 
       - name: Verify vendor/fox exists
         run: |
-          FOX_COMMON="$GITHUB_WORKSPACE/OrangeFox_src/vendor/fox/config/common.mk"
+          FOX_COMMON="${{ env.FOX_SRC }}/vendor/fox/config/common.mk"
           if [ -f "$FOX_COMMON" ]; then
             echo "vendor/fox/config/common.mk found"
             exit 0
           fi
           echo "::warning::vendor/fox not found after sync, trying fallback clone"
-          rm -rf "$GITHUB_WORKSPACE/OrangeFox_src/vendor/fox"
-          mkdir -p "$GITHUB_WORKSPACE/OrangeFox_src/vendor"
+          rm -rf "${{ env.FOX_SRC }}/vendor/fox"
+          mkdir -p "${{ env.FOX_SRC }}/vendor"
           if git clone --depth=1 -b fox_${{ env.MANIFEST_BRANCH }} \
               https://gitlab.com/OrangeFox/vendor/recovery.git \
-              "$GITHUB_WORKSPACE/OrangeFox_src/vendor/fox"; then
+              "${{ env.FOX_SRC }}/vendor/fox"; then
             echo "Fallback clone success: fox_${{ env.MANIFEST_BRANCH }}"
           elif git clone --depth=1 -b ${{ env.MANIFEST_BRANCH }} \
               https://gitlab.com/OrangeFox/vendor/recovery.git \
-              "$GITHUB_WORKSPACE/OrangeFox_src/vendor/fox"; then
+              "${{ env.FOX_SRC }}/vendor/fox"; then
             echo "Fallback clone success: ${{ env.MANIFEST_BRANCH }}"
           else
             echo "::error::Failed to clone vendor/fox"
@@ -122,7 +103,7 @@ jobs:
 
       - name: Apply MSMS decryption patches
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.SYNC_MSMS == true && env.SOC_FAMILY == 'msm' }}
-        working-directory: OrangeFox_src
+        working-directory: ${{ env.FOX_SRC }}
         run: |
           cd bootable/recovery
           git remote add ofox-upstream \
@@ -137,7 +118,7 @@ jobs:
           key: ofox-spinel-${{ env.MANIFEST_BRANCH }}
 
       - name: Build OrangeFox
-        working-directory: OrangeFox_src
+        working-directory: ${{ env.FOX_SRC }}
         run: |
           export USE_CCACHE=1
           export CCACHE_EXEC=$(which ccache)
@@ -165,7 +146,7 @@ jobs:
 
       - name: Check output files
         run: |
-          OUT_DIR="$GITHUB_WORKSPACE/OrangeFox_src/out/target/product/${{ env.DEVICE_CODENAME }}"
+          OUT_DIR="${{ env.FOX_SRC }}/out/target/product/${{ env.DEVICE_CODENAME }}"
           echo "OUT_DIR=$OUT_DIR" >> $GITHUB_ENV
           echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
@@ -216,7 +197,7 @@ jobs:
           mkdir -p /tmp/fail_logs
           [ -f /tmp/build.log ] && cp /tmp/build.log /tmp/fail_logs/ || true
           [ -f /tmp/build_errors.log ] && cp /tmp/build_errors.log /tmp/fail_logs/ || true
-          find $GITHUB_WORKSPACE/OrangeFox_src/out -name "*.log" 2>/dev/null \
+          find ${{ env.FOX_SRC }}/out -name "*.log" 2>/dev/null \
             | head -20 \
             | xargs -I{} sh -c 'cp "{}" /tmp/fail_logs/$(basename "{}")' || true
           echo "=== ENV DUMP ===" > /tmp/fail_logs/env.log
