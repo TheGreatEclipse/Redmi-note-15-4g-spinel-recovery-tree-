@@ -51,7 +51,7 @@ jobs:
 
       - name: Configure git
         run: |
-          git config --global user.name "MkProMVP-Build"
+          git config --global user.name "TheGreatEclipse-Build"
           git config --global user.email "build@localhost"
           git config --global color.ui false
 
@@ -155,19 +155,25 @@ jobs:
 
           if [ -f "$OUT_DIR/vendor_boot.img" ]; then
             echo "CHECK_VENDOR_BOOT=true" >> $GITHUB_ENV
+            IMG_MB=$(du -m "$OUT_DIR/vendor_boot.img" | cut -f1)
+            echo "IMG_MB=${IMG_MB}" >> $GITHUB_ENV
             echo "MD5_IMG=$(md5sum $OUT_DIR/vendor_boot.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
-            echo "vendor_boot.img found"
+            echo "vendor_boot.img found (${IMG_MB} MB)"
           else
             echo "CHECK_VENDOR_BOOT=false" >> $GITHUB_ENV
+            echo "IMG_MB=0" >> $GITHUB_ENV
             echo "::error::vendor_boot.img NOT found!"
           fi
 
           if ls "$OUT_DIR"/OrangeFox*.zip 2>/dev/null; then
             echo "CHECK_ZIP=true" >> $GITHUB_ENV
+            ZIP_MB=$(du -m "$OUT_DIR"/OrangeFox*.zip | cut -f1)
+            echo "ZIP_MB=${ZIP_MB}" >> $GITHUB_ENV
             echo "MD5_ZIP=$(md5sum $OUT_DIR/OrangeFox*.zip | cut -d ' ' -f 1)" >> $GITHUB_ENV
-            echo "OrangeFox zip found"
+            echo "OrangeFox zip found (${ZIP_MB} MB)"
           else
             echo "CHECK_ZIP=false" >> $GITHUB_ENV
+            echo "ZIP_MB=0" >> $GITHUB_ENV
             echo "::warning::OrangeFox zip not found"
           fi
 
@@ -175,7 +181,7 @@ jobs:
         if: env.CHECK_VENDOR_BOOT == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: OrangeFox-${{ env.MANIFEST_BRANCH }}-spinel-MkProMVP-${{ env.BUILD_DATE }}
+          name: OrangeFox-${{ env.MANIFEST_BRANCH }}-spinel-TheGreatEclipse-${{ env.BUILD_DATE }}
           path: |
             ${{ env.OUT_DIR }}/vendor_boot.img
             ${{ env.OUT_DIR }}/OrangeFox*.zip
@@ -211,19 +217,69 @@ jobs:
           path: /tmp/fail_logs/
           retention-days: 7
 
+      - name: Telegram success
+        if: success()
+        run: |
+          # compress log
+          gzip -f /tmp/build.log
+
+          # send success message
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TG_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
+            -d text="$(printf '✅ *BUILD SUCCESS*\n\n📱 *Device:* Redmi Note 15 4G (spinel)\n🌿 *Branch:* fox_%s\n👤 *Maintainer:* TheGreatEclipse\n📅 *Date:* %s\n🏃 *Run:* #%s\n\n📦 *vendor_boot.img:* %s MB\n🗜️ *OrangeFox zip:* %s MB\n\n🔑 *MD5 (img):* `%s`\n🔑 *MD5 (zip):* `%s`' \
+              '${{ env.MANIFEST_BRANCH }}' \
+              '${{ env.BUILD_DATE }}' \
+              '${{ github.run_number }}' \
+              '${{ env.IMG_MB }}' \
+              '${{ env.ZIP_MB }}' \
+              '${{ env.MD5_IMG }}' \
+              '${{ env.MD5_ZIP }}')"
+
+          # send build log as document
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendDocument" \
+            -F chat_id="${{ secrets.TG_CHAT_ID }}" \
+            -F document=@/tmp/build.log.gz \
+            -F caption="📋 Build log — spinel #${{ github.run_number }}"
+
+      - name: Telegram failure
+        if: failure()
+        run: |
+          # compress log if it exists
+          [ -f /tmp/build.log ] && gzip -f /tmp/build.log || true
+
+          # send failure message
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TG_CHAT_ID }}" \
+            -d parse_mode="Markdown" \
+            -d text="$(printf '❌ *BUILD FAILED*\n\n📱 *Device:* Redmi Note 15 4G (spinel)\n🌿 *Branch:* fox_%s\n👤 *Maintainer:* TheGreatEclipse\n📅 *Date:* %s\n🏃 *Run:* #%s\n\n🔍 Check the log below for errors.' \
+              '${{ env.MANIFEST_BRANCH }}' \
+              '$(date +%Y%m%d)' \
+              '${{ github.run_number }}')"
+
+          # send build log as document if it exists
+          if [ -f /tmp/build.log.gz ]; then
+            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendDocument" \
+              -F chat_id="${{ secrets.TG_CHAT_ID }}" \
+              -F document=@/tmp/build.log.gz \
+              -F caption="💥 Failure log — spinel #${{ github.run_number }}"
+          fi
+
       - name: Create GitHub Release
         if: ${{ github.event_name == 'workflow_dispatch' && env.CHECK_VENDOR_BOOT == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: AKRO-${{ github.run_number }}
-          name: "OrangeFox Redmi Note 15 4G (spinel) by MkProMVP #${{ github.run_number }}"
+          name: "OrangeFox Redmi Note 15 4G (spinel) by TheGreatEclipse #${{ github.run_number }}"
           fail_on_unmatched_files: false
           body: |
             **Device:** Redmi Note 15 4G (spinel) — MT6789
             **ROM Base:** HyperOS OS3.0.301.0.WPGMIXM (Android 16)
             **OrangeFox branch:** ${{ env.MANIFEST_BRANCH }}
-            **Maintainer:** MkProMVP — UNOFFICIAL
+            **Maintainer:** TheGreatEclipse — UNOFFICIAL
             **Date:** ${{ env.BUILD_DATE }}
+            **vendor_boot.img size:** ${{ env.IMG_MB }} MB
+            **OrangeFox zip size:** ${{ env.ZIP_MB }} MB
             **MD5 (vendor_boot):** ${{ env.MD5_IMG }}
             **MD5 (zip):** ${{ env.MD5_ZIP }}
 
