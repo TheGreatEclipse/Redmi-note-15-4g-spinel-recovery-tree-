@@ -48,5 +48,5 @@ export OF_NO_MIUI_OTA_VENDOR_BACKUP="1"
 export FOX_ENABLE_APP_MANAGER="0"
 export FOX_DELETE_AROMAFM="0"
 export FOX_INSTALLER_DEBUG_MODE="0"
-
+add_lunch_combo twrp_spinel-eng
 echo "[OrangeFox R12] Environment loaded for spinel (vendor_boot A/B)"
