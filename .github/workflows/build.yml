@@ -205,7 +205,7 @@ jobs:
             codename=$(sed -n 's/^[[:space:]]*PRODUCT_DEVICE[[:space:]]*:=\s*\(.*\)/\1/p' "$file")
             if [[ -n "$makefile" && -n "$brand" && -n "$codename" ]]; then
               DEVICE_MAKEFILE="$makefile"
-              DEVICE_DIRECTORY="device/$brand"
+              DEVICE_DIRECTORY="device/xiaomi"
               DEVICE_NAME="$codename"
               break
             fi
@@ -279,7 +279,7 @@ jobs:
 
           # Lunch target differs per branch (wiki build commands)
           if [ "$BRANCH_INT" = "14" ]; then
-            LUNCH_TARGET="twrp_${DEVICE_NAME}-ap2a-eng"
+            LUNCH_TARGET="twrp_spinel-ap2a-eng"
           else
             LUNCH_TARGET="twrp_${DEVICE_NAME}-eng"
           fi
