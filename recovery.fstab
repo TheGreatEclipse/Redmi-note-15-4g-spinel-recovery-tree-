@@ -1,0 +1,7 @@
+emmc     boot                     /boot         flags=display=emmc
+ext4     /dev/block/mmcblk0p4     /cache        flags=display=ext4
+ext4     /dev/block/mmcblk0p5     /data         flags=display=ext4
+emmc     misc                     /misc         flags=display=emmc
+emmc     recovery                 /recovery     flags=display=emmc
+vfat     /dev/block/mmcblk0p6     /sdcard       flags=display=vfat
+ext4     /dev/block/mmcblk0p3     /system       flags=display=ext4
