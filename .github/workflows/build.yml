@@ -1,279 +1,397 @@
-name: Build OrangeFox Recovery - Redmi Note 15 4G (spinel)
+name: 🦊 OrangeFox · Xiaomi Spinel
 
 on:
-  push:
-    branches: [ main, android-12.1 ]
   workflow_dispatch:
     inputs:
-      SYNC_MSMS:
-        description: "Sync MSMS decryption patches (Qualcomm only)"
+
+      FOX_BRANCH:
+        description: "OrangeFox branch"
+        required: true
+        type: choice
+        options:
+          - "12.1  — Android 12L · VAB + AIDL fscrypt"
+          - "14.1  — Android 14 · GKI 2.0 / VAB  [EXPERIMENTAL]"
+
+      OF_MAINTAINER_PATCH_VERSION:
+        description: "Maintainer patch version (digits only, e.g. 1)"
+        required: false
+        default: "1"
+        type: string
+
+      USE_LATEST_MAGISK:
+        description: "Bundle latest Magisk zip?"
+        required: true
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+      LDCHECK:
+        description: "Run LDCheck after build? (needs tools/ldcheck + tools/libneeds in builder branch)"
         required: false
         default: false
         type: boolean
 
+      LDCHECKPATH:
+        description: "Blob path for LDCheck (e.g. system/bin/qseecomd)"
+        required: false
+        default: "system/bin/qseecomd"
+        type: string
+
+      EXTRA_CMD:
+        description: "Extra exports before lunch (optional)"
+        required: false
+        type: string
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 jobs:
   build:
-    name: Build OrangeFox for spinel
+    name: "🦊 spinel · fox_${{ github.event.inputs.FOX_BRANCH }}"
     runs-on: ubuntu-22.04
+    if: github.event.repository.owner.id == github.event.sender.id
+    timeout-minutes: 720
     permissions:
       contents: write
+
     env:
-      DEVICE_CODENAME: spinel
-      DEVICE_PATH: device/xiaomi/spinel
-      MANIFEST_BRANCH: 12.1
-      FOX_VENDOR_BRANCH: fox_12.1
-      SOC_FAMILY: mtk
-      FOX_SRC: ${{ github.workspace }}/fox_12.1
+      GITHUB_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
+      TG_TOKEN:      ${{ secrets.TG_TOKEN }}
+      TG_CHAT_ID:    ${{ secrets.TG_CHAT_ID }}
+      # ── Fixed device values ────────────────────────────────────────────────
+      DEVICE:        spinel
+      OEM:           xiaomi
+      OF_MAINTAINER: TheGreatEclipse
+      # Recovery-as-Vendor + GKI 2.0 — always vendorbootimage for spinel
+      TARGET:        vendorbootimage
 
     steps:
-      - name: Checkout device tree
+
+      # ── Checkout builder branch (this repo) ─────────────────────────────
+      - name: Checkout builder branch
         uses: actions/checkout@v4
         with:
-          path: ${{ env.DEVICE_PATH }}
+          ref: Builder
+          path: ci
 
-      - name: Free disk space
+      # ── Display inputs ───────────────────────────────────────────────────
+      - name: Display inputs
         run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android \
-                      /opt/ghc /usr/local/.ghcup
-          sudo apt-get clean
-          df -h
+          echo "Branch       : ${{ github.event.inputs.FOX_BRANCH }}"
+          echo "Target       : vendorbootimage (Recovery-as-Vendor · GKI 2.0)"
+          echo "Device tree  : ${{ github.server_url }}/${{ github.repository }} @ Tree"
+          echo "Maintainer   : TheGreatEclipse"
+          echo "LDCheck      : ${{ github.event.inputs.LDCHECK }}"
 
-      - name: Install build dependencies
+      # ── Parse inputs ─────────────────────────────────────────────────────
+      - name: Parse inputs
+        run: |
+          RAW_BRANCH="${{ github.event.inputs.FOX_BRANCH }}"
+          SYNC_BRANCH=$(echo "$RAW_BRANCH" | awk '{print $1}')   # 12.1 or 14.1
+          FOX_BRANCH="fox_${SYNC_BRANCH}"                        # fox_12.1 or fox_14.1
+          BRANCH_INT=$(echo "$SYNC_BRANCH" | cut -d. -f1)        # 12 or 14
+
+          # orangefox_sync.sh puts the tree at $GITHUB_WORKSPACE/OrangeFox/fox_<branch>
+          SYNC_PATH="${GITHUB_WORKSPACE}/OrangeFox/${FOX_BRANCH}"
+
+          {
+            echo "FOX_BRANCH=$FOX_BRANCH"
+            echo "SYNC_BRANCH=$SYNC_BRANCH"
+            echo "BRANCH_INT=$BRANCH_INT"
+            echo "SYNC_PATH=$SYNC_PATH"
+            echo "CCACHE_DIR=$HOME/.ccache"
+            echo "CHECK_LEGACY_BRANCH=false"
+          } >> "$GITHUB_ENV"
+
+      # ── Slim down the runner ─────────────────────────────────────────────
+      - name: Clean up runner disk space
+        uses: rokibhasansagar/slimhub_actions@main
+
+      # ── Extra swap space ─────────────────────────────────────────────────
+      - name: Add swap space (12 GB)
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 12
+
+      # ── Install build dependencies ────────────────────────────────────────
+      - name: Install build environment
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            git-core gnupg flex bison build-essential zip curl \
-            zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 \
-            libncurses5 lib32ncurses5-dev x11proto-core-dev \
-            libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils \
-            xsltproc unzip fontconfig python3 python3-pip bc \
-            lzop pngcrush rsync schedtool ccache openjdk-11-jdk aria2
+          sudo apt-get install -y aria2
+          git clone https://gitlab.com/OrangeFox/misc/scripts "$HOME/ofox-scripts"
+          cd "$HOME/ofox-scripts"
+          sudo bash setup/android_build_env.sh
 
+      # ── ccache ───────────────────────────────────────────────────────────
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-spinel-${{ github.event.inputs.FOX_BRANCH }}-${{ github.sha }}
+          restore-keys: |
+            ccache-spinel-${{ github.event.inputs.FOX_BRANCH }}-
+            ccache-spinel-
+
+      - name: Set ccache size
+        run: ccache -M 50G
+
+      # ── Git identity ──────────────────────────────────────────────────────
       - name: Configure git
         run: |
-          git config --global user.name "TheGreatEclipse-Build"
-          git config --global user.email "build@localhost"
-          git config --global color.ui false
+          git config --global user.name  "${{ github.actor }}"
+          git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
+          git config --global color.ui   false
 
-      - name: Install repo
+      # ── Telegram: started ─────────────────────────────────────────────────
+      - name: Telegram — build started
+        if: env.TG_TOKEN != ''
         run: |
-          mkdir -p ~/bin
-          curl -fsSL https://storage.googleapis.com/git-repo-downloads/repo \
-            -o ~/bin/repo
-          chmod +x ~/bin/repo
-          echo "$HOME/bin" >> $GITHUB_PATH
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT_ID}" \
+            -d parse_mode="HTML" \
+            -d text="$(printf \
+              '🦊 <b>OrangeFox CI · Xiaomi Spinel</b>\n\n✔️ Build triggered!\n\n📱 Device: <code>spinel</code> (Xiaomi)\n🌿 Branch: <code>%s</code>\n🎯 Target: <code>vendorbootimage</code> (RaV · GKI 2.0)\n👤 Maintainer: TheGreatEclipse\n🌲 Logs: <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View</a>' \
+              "$FOX_BRANCH")"
 
-      - name: Sync OrangeFox source (official sync script)
+      # ── Sync via official orangefox_sync.sh ──────────────────────────────
+      - name: Clone orangefox_sync
         run: |
-          mkdir -p ~/OrangeFox_sync
-          cd ~/OrangeFox_sync
-          git clone https://gitlab.com/OrangeFox/sync.git
-          cd ~/OrangeFox_sync/sync
+          mkdir -p "${GITHUB_WORKSPACE}/OrangeFox"
+          cd "${GITHUB_WORKSPACE}/OrangeFox"
+          git clone --depth=1 https://gitlab.com/OrangeFox/sync.git
+
+      - name: Sync OrangeFox sources (orangefox_sync.sh)
+        run: |
+          cd "${GITHUB_WORKSPACE}/OrangeFox/sync"
           ./orangefox_sync.sh \
-            --branch ${{ env.MANIFEST_BRANCH }} \
-            --path ${{ env.FOX_SRC }}
+            --branch "$SYNC_BRANCH" \
+            --path   "$SYNC_PATH"
 
-      - name: Place device tree
+      # ── Guava fallback for 14.1 ───────────────────────────────────────────
+      - name: Ensure Guava dependency (14.1 only)
+        if: env.SYNC_BRANCH == '14.1'
         run: |
-          DEST="${{ env.FOX_SRC }}/${{ env.DEVICE_PATH }}"
-          rm -rf "$DEST"
-          cp -r "${{ github.workspace }}/${{ env.DEVICE_PATH }}" "$DEST"
-          rm -rf "$DEST/.git"
-          echo "=== Device tree files ==="
-          ls -la "$DEST/"
+          cd "$SYNC_PATH"
+          if [ -f external/guava/Android.bp ] && \
+             grep -q 'name:[[:space:]]*"guava"' external/guava/Android.bp; then
+            echo "guava module already available."
+          else
+            echo "guava missing — cloning fallback..."
+            rm -rf external/guava
+            git clone --depth=1 \
+              https://android.googlesource.com/platform/external/guava \
+              external/guava
+          fi
 
-      - name: Apply MSMS decryption patches
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.SYNC_MSMS == true && env.SOC_FAMILY == 'msm' }}
-        working-directory: ${{ env.FOX_SRC }}
+      # ── Clone spinel device tree (Tree branch, same repo as builder) ─────
+      - name: Clone spinel device tree
         run: |
-          cd bootable/recovery
-          git remote add ofox-upstream \
-            https://gitlab.com/OrangeFox/bootable/Recovery.git 2>/dev/null || true
-          git fetch ofox-upstream fox_${{ env.MANIFEST_BRANCH }} --depth=1
-          echo "OrangeFox Recovery upstream fetched."
+          cd "$SYNC_PATH"
 
-      - name: Set up ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          max-size: 2G
-          key: ofox-spinel-${{ env.MANIFEST_BRANCH }}
+          # Clone the Tree branch from this very repository into a staging dir
+          git clone --depth=1 \
+            "${{ github.server_url }}/${{ github.repository }}.git" \
+            -b Tree \
+            ./device_tree_staging
 
+          # Extract PRODUCT_BRAND, PRODUCT_DEVICE from .mk files
+          cd device_tree_staging
+          DEVICE_MAKEFILE=""
+          DEVICE_DIRECTORY=""
+          DEVICE_NAME=""
+          for file in *.mk; do
+            makefile=$(sed -n 's/^[[:space:]]*PRODUCT_NAME[[:space:]]*:=\s*\(.*\)/\1/p' "$file")
+            brand=$(sed -n    's/^[[:space:]]*PRODUCT_BRAND[[:space:]]*:=\s*\(.*\)/\1/p' "$file")
+            codename=$(sed -n 's/^[[:space:]]*PRODUCT_DEVICE[[:space:]]*:=\s*\(.*\)/\1/p' "$file")
+            if [[ -n "$makefile" && -n "$brand" && -n "$codename" ]]; then
+              DEVICE_MAKEFILE="$makefile"
+              DEVICE_DIRECTORY="device/$brand"
+              DEVICE_NAME="$codename"
+              break
+            fi
+          done
+          cd ..
+
+          # Fall back to hardcoded values if .mk parsing fails
+          DEVICE_DIRECTORY="${DEVICE_DIRECTORY:-device/xiaomi}"
+          DEVICE_NAME="${DEVICE_NAME:-spinel}"
+
+          mkdir -p "$DEVICE_DIRECTORY"
+          mv device_tree_staging "$DEVICE_DIRECTORY/$DEVICE_NAME"
+
+          COMMIT_ID=$(git -C "$DEVICE_DIRECTORY/$DEVICE_NAME" rev-parse HEAD)
+          {
+            echo "DEVICE_NAME=$DEVICE_NAME"
+            echo "DEVICE_DIRECTORY=$DEVICE_DIRECTORY"
+            echo "DEVICE_MAKEFILE=$DEVICE_MAKEFILE"
+            echo "COMMIT_ID=$COMMIT_ID"
+          } >> "$GITHUB_ENV"
+
+      # ── Download latest Magisk (optional) ─────────────────────────────────
+      - name: Download latest Magisk
+        if: github.event.inputs.USE_LATEST_MAGISK == 'true'
+        run: |
+          mkdir -p ~/Magisk && cd ~/Magisk
+          URL=$(curl -sL https://api.github.com/repos/topjohnwu/Magisk/releases/latest \
+            | jq -r '.assets[] | select(.name | startswith("Magisk-")) | .browser_download_url' \
+            | head -1)
+          echo "Downloading Magisk: $URL"
+          aria2c "$URL" || wget "$URL"
+          APK=$(ls Magisk*.apk 2>/dev/null | head -1)
+          [ -n "$APK" ] && mv "$APK" "${APK%.apk}.zip"
+          echo "FOX_USE_SPECIFIC_MAGISK_ZIP=$(ls ~/Magisk/Magisk*.zip | head -1)" >> "$GITHUB_ENV"
+
+      # ── Build ─────────────────────────────────────────────────────────────
       - name: Build OrangeFox
-        working-directory: ${{ env.FOX_SRC }}
         run: |
-          export USE_CCACHE=1
-          export CCACHE_EXEC=$(which ccache)
-          export CCACHE_DIR=/tmp/ccache
-          export ALLOW_MISSING_DEPENDENCIES=true
-          export BUILD_BROKEN_USES_BUILD_COPY_HEADERS=true
-          export BUILD_BROKEN_VENDOR_PROPERTY_NAMESPACE=true
           set +e
+          cd "$SYNC_PATH"
           source build/envsetup.sh
           set -e
-          lunch twrp_spinel-eng
-          mka adbd vendorbootimage -j$(nproc) 2>&1 | tee /tmp/build.log
-          BUILD_EXIT=${PIPESTATUS[0]}
 
-          echo "=== BUILD ERRORS & WARNINGS ===" > /tmp/build_errors.log
-          echo "Run #${{ github.run_number }} — $(date)" >> /tmp/build_errors.log
-          echo "========================================" >> /tmp/build_errors.log
-          grep -iE "^(.*error:|.*warning:|make:|FAILED:|ninja:|fatal:)" /tmp/build.log \
-            >> /tmp/build_errors.log || true
-          echo "" >> /tmp/build_errors.log
-          echo "=== LAST 100 LINES ===" >> /tmp/build_errors.log
-          tail -100 /tmp/build.log >> /tmp/build_errors.log
+          # User-supplied extras
+          EXTRA="${{ github.event.inputs.EXTRA_CMD }}"
+          [ -n "$EXTRA" ] && eval "$EXTRA"
 
-          exit $BUILD_EXIT
+          # Core build vars
+          export FOX_BUILD_DEVICE="$DEVICE_NAME"
+          export OF_MAINTAINER="TheGreatEclipse"
+          export ALLOW_MISSING_DEPENDENCIES=true
+          export FOX_USE_TWRP_RECOVERY_IMAGE_BUILDER=1
+          export FOX_BUILD_TYPE="Unofficial-CI"
+          export LC_ALL="C"
 
-      - name: Check output files
-        run: |
-          OUT_DIR="${{ env.FOX_SRC }}/out/target/product/${{ env.DEVICE_CODENAME }}"
-          echo "OUT_DIR=$OUT_DIR" >> $GITHUB_ENV
-          echo "BUILD_DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+          # ccache
+          export USE_CCACHE=1
+          export CCACHE_EXEC=$(which ccache)
 
-          echo "=== Files in OUT_DIR ==="
-          ls -lh "$OUT_DIR/" || echo "OUT_DIR not found!"
+          # Versioning (wiki §9 — FOX_VERSION obsolete from R11.3+)
+          PATCH_VER="${{ github.event.inputs.OF_MAINTAINER_PATCH_VERSION }}"
+          [ -n "$PATCH_VER" ] && export FOX_MAINTAINER_PATCH_VERSION="$PATCH_VER"
 
-          if [ -f "$OUT_DIR/vendor_boot.img" ]; then
-            echo "CHECK_VENDOR_BOOT=true" >> $GITHUB_ENV
-            IMG_MB=$(du -m "$OUT_DIR/vendor_boot.img" | cut -f1)
-            echo "IMG_MB=${IMG_MB}" >> $GITHUB_ENV
-            echo "MD5_IMG=$(md5sum $OUT_DIR/vendor_boot.img | cut -d ' ' -f 1)" >> $GITHUB_ENV
-            echo "vendor_boot.img found (${IMG_MB} MB)"
+          # Magisk
+          [ -n "$FOX_USE_SPECIFIC_MAGISK_ZIP" ] && \
+            export FOX_USE_SPECIFIC_MAGISK_ZIP="$FOX_USE_SPECIFIC_MAGISK_ZIP"
+
+          # Spinel: GKI 2.0 / Virtual A/B / Recovery-as-Vendor
+          export FOX_AB_DEVICE=1
+          export FOX_VIRTUAL_AB_DEVICE=1
+
+          # Lunch target differs per branch (wiki build commands)
+          if [ "$BRANCH_INT" = "14" ]; then
+            LUNCH_TARGET="twrp_${DEVICE_NAME}-ap2a-eng"
           else
-            echo "CHECK_VENDOR_BOOT=false" >> $GITHUB_ENV
-            echo "IMG_MB=0" >> $GITHUB_ENV
-            echo "::error::vendor_boot.img NOT found!"
+            LUNCH_TARGET="twrp_${DEVICE_NAME}-eng"
           fi
 
-          if ls "$OUT_DIR"/OrangeFox*.zip 2>/dev/null; then
-            echo "CHECK_ZIP=true" >> $GITHUB_ENV
-            ZIP_MB=$(du -m "$OUT_DIR"/OrangeFox*.zip | cut -f1)
-            echo "ZIP_MB=${ZIP_MB}" >> $GITHUB_ENV
-            echo "MD5_ZIP=$(md5sum $OUT_DIR/OrangeFox*.zip | cut -d ' ' -f 1)" >> $GITHUB_ENV
-            echo "OrangeFox zip found (${ZIP_MB} MB)"
+          lunch "$LUNCH_TARGET"
+          make clean
+          mka adbd vendorbootimage
+
+      # ── Set build date ────────────────────────────────────────────────────
+      - name: Set build date
+        run: echo "BUILD_DATE=$(date +%Y%m%d)" >> "$GITHUB_ENV"
+
+      # ── Check outputs exist ───────────────────────────────────────────────
+      - name: Check build outputs
+        run: |
+          OUT="$SYNC_PATH/out/target/product/${DEVICE_NAME}"
+          if [ -f "$OUT"/OrangeFox*.img ]; then
+            echo "CHECK_IMG_IS_OK=true" >> "$GITHUB_ENV"
+            echo "MD5_IMG=$(md5sum "$OUT"/OrangeFox*.img | cut -d ' ' -f1)" >> "$GITHUB_ENV"
           else
-            echo "CHECK_ZIP=false" >> $GITHUB_ENV
-            echo "ZIP_MB=0" >> $GITHUB_ENV
-            echo "::warning::OrangeFox zip not found"
+            echo "No .img found in $OUT"
+          fi
+          if [ -f "$OUT"/OrangeFox*.zip ]; then
+            echo "CHECK_ZIP_IS_OK=true" >> "$GITHUB_ENV"
+            echo "MD5_ZIP=$(md5sum "$OUT"/OrangeFox*.zip | cut -d ' ' -f1)" >> "$GITHUB_ENV"
+            echo "FILENAME=$(basename "$OUT"/OrangeFox*.zip)" >> "$GITHUB_ENV"
+          else
+            echo "No .zip found in $OUT"
           fi
 
-      - name: Upload recovery artifact
-        if: env.CHECK_VENDOR_BOOT == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: OrangeFox-${{ env.MANIFEST_BRANCH }}-spinel-TheGreatEclipse-${{ env.BUILD_DATE }}
-          path: |
-            ${{ env.OUT_DIR }}/vendor_boot.img
-            ${{ env.OUT_DIR }}/OrangeFox*.zip
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Upload build errors log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-errors-spinel-${{ github.run_number }}
-          path: /tmp/build_errors.log
-          if-no-files-found: ignore
-          retention-days: 14
-
-      - name: Collect all logs on failure
-        if: failure()
-        run: |
-          mkdir -p /tmp/fail_logs
-          [ -f /tmp/build.log ] && cp /tmp/build.log /tmp/fail_logs/ || true
-          [ -f /tmp/build_errors.log ] && cp /tmp/build_errors.log /tmp/fail_logs/ || true
-          find ${{ env.FOX_SRC }}/out -name "*.log" 2>/dev/null \
-            | head -20 \
-            | xargs -I{} sh -c 'cp "{}" /tmp/fail_logs/$(basename "{}")' || true
-          echo "=== ENV DUMP ===" > /tmp/fail_logs/env.log
-          env >> /tmp/fail_logs/env.log
-
-      - name: Upload all logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log-spinel-${{ github.run_number }}
-          path: /tmp/fail_logs/
-          retention-days: 7
-
-      - name: Telegram success
-        if: success()
-        run: |
-          # compress log
-          gzip -f /tmp/build.log
-
-          # send success message
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TG_CHAT_ID }}" \
-            -d parse_mode="Markdown" \
-            -d text="$(printf '✅ *BUILD SUCCESS*\n\n📱 *Device:* Redmi Note 15 4G (spinel)\n🌿 *Branch:* fox_%s\n👤 *Maintainer:* TheGreatEclipse\n📅 *Date:* %s\n🏃 *Run:* #%s\n\n📦 *vendor_boot.img:* %s MB\n🗜️ *OrangeFox zip:* %s MB\n\n🔑 *MD5 (img):* `%s`\n🔑 *MD5 (zip):* `%s`' \
-              '${{ env.MANIFEST_BRANCH }}' \
-              '${{ env.BUILD_DATE }}' \
-              '${{ github.run_number }}' \
-              '${{ env.IMG_MB }}' \
-              '${{ env.ZIP_MB }}' \
-              '${{ env.MD5_IMG }}' \
-              '${{ env.MD5_ZIP }}')"
-
-          # send build log as document
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendDocument" \
-            -F chat_id="${{ secrets.TG_CHAT_ID }}" \
-            -F document=@/tmp/build.log.gz \
-            -F caption="📋 Build log — spinel #${{ github.run_number }}"
-
-      - name: Telegram failure
-        if: failure()
-        run: |
-          # compress log if it exists
-          [ -f /tmp/build.log ] && gzip -f /tmp/build.log || true
-
-          # send failure message
-          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendMessage" \
-            -d chat_id="${{ secrets.TG_CHAT_ID }}" \
-            -d parse_mode="Markdown" \
-            -d text="$(printf '❌ *BUILD FAILED*\n\n📱 *Device:* Redmi Note 15 4G (spinel)\n🌿 *Branch:* fox_%s\n👤 *Maintainer:* TheGreatEclipse\n📅 *Date:* %s\n🏃 *Run:* #%s\n\n🔍 Check the log below for errors.' \
-              '${{ env.MANIFEST_BRANCH }}' \
-              '$(date +%Y%m%d)' \
-              '${{ github.run_number }}')"
-
-          # send build log as document if it exists
-          if [ -f /tmp/build.log.gz ]; then
-            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendDocument" \
-              -F chat_id="${{ secrets.TG_CHAT_ID }}" \
-              -F document=@/tmp/build.log.gz \
-              -F caption="💥 Failure log — spinel #${{ github.run_number }}"
-          fi
-
-      - name: Create GitHub Release
-        if: ${{ github.event_name == 'workflow_dispatch' && env.CHECK_VENDOR_BOOT == 'true' }}
+      # ── Upload to GitHub Release ─────────────────────────────────────────
+      - name: Upload to GitHub Release
+        if: env.CHECK_IMG_IS_OK == 'true' && env.CHECK_ZIP_IS_OK == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: AKRO-${{ github.run_number }}
-          name: "OrangeFox Redmi Note 15 4G (spinel) by TheGreatEclipse #${{ github.run_number }}"
-          fail_on_unmatched_files: false
-          body: |
-            **Device:** Redmi Note 15 4G (spinel) — MT6789
-            **ROM Base:** HyperOS OS3.0.301.0.WPGMIXM (Android 16)
-            **OrangeFox branch:** ${{ env.MANIFEST_BRANCH }}
-            **Maintainer:** TheGreatEclipse — UNOFFICIAL
-            **Date:** ${{ env.BUILD_DATE }}
-            **vendor_boot.img size:** ${{ env.IMG_MB }} MB
-            **OrangeFox zip size:** ${{ env.ZIP_MB }} MB
-            **MD5 (vendor_boot):** ${{ env.MD5_IMG }}
-            **MD5 (zip):** ${{ env.MD5_ZIP }}
-
-            ### Flash
-            ```
-            fastboot flash vendor_boot vendor_boot.img
-            ```
-            - A/B device — recovery inside vendor_boot
-            - FBE decryption for HyperOS 3 / Android 16
           files: |
-            ${{ env.OUT_DIR }}/vendor_boot.img
-            ${{ env.OUT_DIR }}/OrangeFox*.zip
-          draft: false
-          prerelease: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            ${{ env.SYNC_PATH }}/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img
+            ${{ env.SYNC_PATH }}/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.img.tar
+            ${{ env.SYNC_PATH }}/out/target/product/${{ env.DEVICE_NAME }}/OrangeFox*.zip
+            ${{ env.SYNC_PATH }}/out/target/product/${{ env.DEVICE_NAME }}/ramdisk-recovery.*
+          name: "OrangeFox for spinel // ${{ env.BUILD_DATE }}"
+          tag_name: ${{ github.run_id }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            ## 🦊 OrangeFox Recovery — Xiaomi Spinel
+
+            | | |
+            |---|---|
+            | **Branch** | `${{ env.FOX_BRANCH }}` |
+            | **Target** | `vendorbootimage` (Recovery-as-Vendor · GKI 2.0) |
+            | **Device tree** | [${{ github.repository }} @ Tree](${{ github.server_url }}/${{ github.repository }}/tree/Tree) |
+            | **Tree commit** | [`${{ env.COMMIT_ID }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ env.COMMIT_ID }}) |
+            | **Maintainer** | TheGreatEclipse |
+            | **Build date** | `${{ env.BUILD_DATE }}` |
+            | **MD5 (img)** | `${{ env.MD5_IMG }}` |
+            | **MD5 (zip)** | `${{ env.MD5_ZIP }}` |
+
+      # ── Mirror to oshi.at ─────────────────────────────────────────────────
+      - name: Mirror to oshi.at
+        if: env.CHECK_ZIP_IS_OK == 'true'
+        run: |
+          OUT="$SYNC_PATH/out/target/product/${DEVICE_NAME}"
+          FILE=$(ls "$OUT"/OrangeFox*.zip 2>/dev/null | head -1)
+          [ -z "$FILE" ] && exit 0
+          RESULT=$(curl -sT "$FILE" "https://oshi.at/$(basename "$FILE")/20160")
+          MIRROR_LINK=$(echo "$RESULT" | grep -i "DL:" | awk '{print $2}')
+          echo "MIRROR_LINK=$MIRROR_LINK" >> "$GITHUB_ENV"
+          echo "Mirror: $MIRROR_LINK"
+
+      # ── Telegram: success ─────────────────────────────────────────────────
+      - name: Telegram — success
+        if: success() && env.TG_TOKEN != '' && env.CHECK_ZIP_IS_OK == 'true'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT_ID}" \
+            -d parse_mode="HTML" \
+            -d text="$(printf \
+              '🦊 <b>OrangeFox CI · Xiaomi Spinel</b>\n\n✅ Build complete!\n\n📱 Device: <code>spinel</code>\n🌿 Branch: <code>%s</code>\n🎯 Target: <code>vendorbootimage</code>\n📦 File: <code>%s</code>\n🔐 MD5: <code>%s</code>\n⬇️ Mirror: <a href="%s">oshi.at</a>\n🌲 Release: <a href="https://github.com/${{ github.repository }}/releases/tag/${{ github.run_id }}">GitHub</a>\n👤 By: TheGreatEclipse' \
+              "$FOX_BRANCH" "$FILENAME" "$MD5_ZIP" "$MIRROR_LINK")"
+
+      # ── Telegram: failure ─────────────────────────────────────────────────
+      - name: Telegram — failure
+        if: failure() && env.TG_TOKEN != ''
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            -d chat_id="${TG_CHAT_ID}" \
+            -d parse_mode="HTML" \
+            -d text="$(printf \
+              '🦊 <b>OrangeFox CI · Xiaomi Spinel</b>\n\n❌ Build FAILED!\n\n📱 Device: <code>spinel</code>\n🌿 Branch: <code>%s</code>\n🌲 Logs: <a href="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}">View logs</a>' \
+              "$FOX_BRANCH")"
+
+      # ── LDCheck (optional) — tools/ lives in Builder branch, checked out at ci/ ──
+      - name: Run LDCheck
+        if: inputs.LDCHECK == 'true'
+        continue-on-error: true
+        run: |
+          OUT="$SYNC_PATH/out/target/product/${DEVICE_NAME}/recovery/root"
+
+          # tools/ldcheck and tools/libneeds come from the Builder branch checkout (ci/)
+          if [ ! -f "ci/tools/ldcheck" ] || [ ! -f "ci/tools/libneeds" ]; then
+            echo "❌ ci/tools/ldcheck or ci/tools/libneeds not found."
+            echo "   Make sure both files exist in the tools/ folder of your Builder branch."
+            exit 1
+          fi
+
+          cp ci/tools/libneeds "$OUT/libneeds"
+          cp ci/tools/ldcheck  "$OUT/ldcheck"
+          chmod +x "$OUT/ldcheck" "$OUT/libneeds"
+
+          cd "$OUT"
+          python3 ldcheck \
+            -p system/lib64:vendor/lib64:system/lib:vendor/lib \
+            -d ${{ inputs.LDCHECKPATH }}
+
+          echo "LDCheck complete — review output above for missing dependencies."

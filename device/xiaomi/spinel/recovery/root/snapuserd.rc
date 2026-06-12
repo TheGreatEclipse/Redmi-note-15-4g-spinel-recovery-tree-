@@ -1,9 +1,0 @@
-service snapuserd /system/bin/snapuserd
-    class core
-    user root
-    group root
-    disabled
-    seclabel u:r:snapuserd:s0
-
-on property:ro.virtual_ab.enabled=true
-    start snapuserd
