@@ -12,6 +12,18 @@ on:
           - "12.1  — Android 12L · VAB + AIDL fscrypt"
           - "14.1  — Android 14 · GKI 2.0 / VAB  [EXPERIMENTAL]"
 
+      DEVICE_TREE_URL:
+        description: "Device tree repo URL (e.g. https://github.com/mkpromvp/recovery_device_xiaomi_spinel.git)"
+        required: true
+        type: string
+        default: "https://github.com/mkpromvp/recovery_device_xiaomi_spinel.git"
+
+      DEVICE_TREE_BRANCH:
+        description: "Device tree branch"
+        required: true
+        type: string
+        default: "main"
+
       OF_MAINTAINER_PATCH_VERSION:
         description: "Maintainer patch version (digits only, e.g. 1)"
         required: false
@@ -79,7 +91,7 @@ jobs:
         run: |
           echo "Branch       : ${{ github.event.inputs.FOX_BRANCH }}"
           echo "Target       : vendorbootimage (Recovery-as-Vendor · GKI 2.0)"
-          echo "Device tree  : ${{ github.server_url }}/${{ github.repository }} @ Tree"
+          echo "Device tree  : ${{ github.event.inputs.DEVICE_TREE_URL }} @ ${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
           echo "Maintainer   : TheGreatEclipse"
           echo "LDCheck      : ${{ github.event.inputs.LDCHECK }}"
 
@@ -183,15 +195,25 @@ jobs:
               external/guava
           fi
 
-      # ── Clone spinel device tree (Tree branch, same repo as builder) ─────
+      # ── Clone spinel device tree (user-supplied repo + branch) ───────────
       - name: Clone spinel device tree
         run: |
           cd "$SYNC_PATH"
 
-          # Clone the Tree branch from this very repository into a staging dir
+          DEVICE_TREE_URL="${{ github.event.inputs.DEVICE_TREE_URL }}"
+          DEVICE_TREE_BRANCH="${{ github.event.inputs.DEVICE_TREE_BRANCH }}"
+
+          if [ -z "$DEVICE_TREE_URL" ] || [ -z "$DEVICE_TREE_BRANCH" ]; then
+            echo "❌ DEVICE_TREE_URL and DEVICE_TREE_BRANCH are both required."
+            exit 1
+          fi
+
+          echo "Cloning device tree: $DEVICE_TREE_URL @ $DEVICE_TREE_BRANCH"
+
+          # Clone the user-supplied device tree repo/branch into a staging dir
           git clone --depth=1 \
-            "${{ github.server_url }}/${{ github.repository }}.git" \
-            -b Tree \
+            "$DEVICE_TREE_URL" \
+            -b "$DEVICE_TREE_BRANCH" \
             ./device_tree_staging
 
           # Extract PRODUCT_BRAND, PRODUCT_DEVICE from .mk files
@@ -225,6 +247,8 @@ jobs:
             echo "DEVICE_DIRECTORY=$DEVICE_DIRECTORY"
             echo "DEVICE_MAKEFILE=$DEVICE_MAKEFILE"
             echo "COMMIT_ID=$COMMIT_ID"
+            echo "DEVICE_TREE_URL=$DEVICE_TREE_URL"
+            echo "DEVICE_TREE_BRANCH=$DEVICE_TREE_BRANCH"
           } >> "$GITHUB_ENV"
 
       # ── Download latest Magisk (optional) ─────────────────────────────────
@@ -330,8 +354,8 @@ jobs:
             |---|---|
             | **Branch** | `${{ env.FOX_BRANCH }}` |
             | **Target** | `vendorbootimage` (Recovery-as-Vendor · GKI 2.0) |
-            | **Device tree** | [${{ github.repository }} @ Tree](${{ github.server_url }}/${{ github.repository }}/tree/Tree) |
-            | **Tree commit** | [`${{ env.COMMIT_ID }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ env.COMMIT_ID }}) |
+            | **Device tree** | [${{ env.DEVICE_TREE_URL }}](${{ env.DEVICE_TREE_URL }}) @ `${{ env.DEVICE_TREE_BRANCH }}` |
+            | **Tree commit** | `${{ env.COMMIT_ID }}` |
             | **Maintainer** | TheGreatEclipse |
             | **Build date** | `${{ env.BUILD_DATE }}` |
             | **MD5 (img)** | `${{ env.MD5_IMG }}` |
