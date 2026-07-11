@@ -67,7 +67,7 @@ jobs:
       contents: write
 
     env:
-      GITHUB_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
+      GT_TOKEN:  ${{ secrets.GT_TOKEN }}
       TG_TOKEN:      ${{ secrets.TG_TOKEN }}
       TG_CHAT_ID:    ${{ secrets.TG_CHAT_ID }}
       DEVICE:        spinel
@@ -229,7 +229,7 @@ jobs:
           mkdir -p ~/Magisk && cd ~/Magisk
 
           RESPONSE=$(curl -sL \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "Authorization: Bearer ${GT_TOKEN}" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/topjohnwu/Magisk/releases/latest)
 
@@ -447,7 +447,7 @@ jobs:
             ${{ env.SYNC_PATH }}/out/target/product/${{ env.DEVICE_NAME }}/ramdisk-recovery.*
           name: "OrangeFox for spinel // ${{ env.BUILD_DATE }}"
           tag_name: ${{ github.run_id }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GT_TOKEN }}
           body: |
             ## 🦊 OrangeFox Recovery — Xiaomi Spinel
 
